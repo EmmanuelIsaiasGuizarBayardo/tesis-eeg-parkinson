@@ -61,12 +61,27 @@ El código se distribuye bajo la licencia MIT (`LICENSE`).
      Si el proyecto sí guarda datos, reemplaza el párrafo por qué se guarda,
      dónde, por cuánto tiempo y con qué consentimiento. -->
 
-**Señal de personas.** [COMPLETAR: qué se capta y de quién]. Se mantiene en
-memoria mientras dura la sesión y no se escribe a disco; ningún componente la
-persiste. Este repositorio no contiene datos personales.
+**Señal de personas.** Registros de EEG en reposo de 31 personas adultas (15 con
+enfermedad de Parkinson y 16 controles) del conjunto público ds002778 v1.0.5 de
+OpenNeuro (licencia CC0), desidentificados por sus curadores; el consentimiento
+informado corresponde al estudio original que recolectó los datos (Swann et al.,
+2015). Los crudos viven en `data/raw/` y los derivados en `data/processed/`, en la
+máquina de quien corre el análisis y fuera del control de versiones, durante el
+desarrollo de la tesis. Ningún componente los transmite por red. Este repositorio
+no contiene datos personales.
 
 **Marco legal.** Esta declaración es técnica, no un aviso de privacidad. Revisó si
-hace falta uno: [COMPLETAR: quién y cuándo, o "pendiente"].
+hace falta uno: pendiente.
+
+## Decisiones documentadas
+
+- **Ingreso de datos.** `tools/download_ds002778.py` es el único script que escribe
+  en `data/raw/`, una sola vez, y se niega si el destino ya tiene contenido. Después
+  del ingreso, `data/raw/` es inmutable.
+- **ICA por registro.** Cada ICA se ajusta con su propio registro y sin etiquetas;
+  con validación por sujeto, ningún dato de prueba entra al entrenamiento. Sería
+  fuga (modo 3 del módulo de investigación) en cualquier partición dentro del sujeto.
+- **Detalle del preprocesamiento** y justificación de cada paso: `docs/preprocesamiento.md`.
 
 ## Créditos
 

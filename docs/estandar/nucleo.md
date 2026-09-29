@@ -59,11 +59,12 @@ proyectos.
 - `CITATION.cff` es la fuente de la cita; GitHub genera desde ahí el botón *Cite this repository*. Las referencias formales a datos y software de terceros viven solo en su sección `references`.
 - `CREDITS.md` asigna a cada persona sus roles CRediT, con una narrativa que coincide con ellos. La narrativa describe aportaciones, no cargos.
 - **REGLA DURA.** Todo autor del CFF tiene su sección en `CREDITS.md`, y la versión del CFF es la de `pyproject.toml`. `tests/test_gobernanza.py` lo verifica, y las marcas `[COMPLETAR: ...]` hacen fallar el CI hasta que se completan.
-- Antes de cada presentación pública se publica una versión con etiqueta anotada que nombra el evento (ver `docs/comandos.md`).
+- **REGLA DURA.** Una versión se publica con `uv run python tools/publicar.py X.Y.Z "mensaje"`, nunca etiquetando a mano: sube el número, sincroniza el CFF, corre las pruebas, etiqueta y sube, y se detiene antes de etiquetar si algo falla. Una etiqueta publicada no se mueve; si salió mal, se publica la siguiente versión.
+- Antes de cada presentación pública se publica una versión cuyo mensaje nombra el evento.
 
 ## Actualizar el estándar
 
-- Con el árbol limpio: `uvx copier update --trust`. Los cambios quedan sin commitear: se revisan con `git diff` y se commitean de inmediato, o la siguiente actualización encontrará el árbol sucio.
+- Con el árbol limpio: `uvx copier update --trust`. La actualización no toca el entorno: al terminar se corren `uv sync` y `uv run python tools/export_requirements.py`, se revisa con `git diff` y se commitea de inmediato, o la siguiente actualización encontrará el árbol sucio.
 - `docs/estandar/`, `AGENTS.md`, `CLAUDE.md` y `.agents/rules/` se regeneran; no se editan. Las notas propias para asistentes van en la sección final de `AGENTS.md`, que la actualización conserva.
 
 ## Lista de verificación

@@ -4,7 +4,6 @@ title: "Tesis_EEG_Parkinson"
 abstract: "Detección de enfermedad de Parkinson en EEG: validación por sujetos y transferibilidad a Emotiv EPOC X."
 type: software
 license: MIT
-repository-code: "https://github.com/EmmanuelIsaiasGuizarBayardo/tesis-eeg-parkinson"
 version: "0.1.0"
 
 # Autores: quienes aparecen al citar. Cada uno tiene su sección en CREDITS.md
@@ -14,11 +13,59 @@ authors:
     family-names: "Guízar-Bayardo"
 
 # Datos y software de terceros: su referencia formal vive solo aquí.
-# references:
-#   - type: data
-#     title: "Título del dataset"
-#     doi: "10.xxxx/..."   # con versión, si el repositorio versiona sus DOI
-#     license: CC0-1.0
-#     authors:
-#       - family-names: "Apellido"
-#         given-names: "Nombre"
+references:
+  - type: data
+    title: "UC San Diego Resting State EEG Data from Patients with Parkinson's Disease"
+    version: "1.0.5"
+    doi: "10.18112/openneuro.ds002778.v1.0.5"
+    license: CC0-1.0
+    year: 2021
+    authors:
+      - family-names: "Rockhill"
+        given-names: "Alexander P."
+      - family-names: "Jackson"
+        given-names: "Nicko"
+      - family-names: "George"
+        given-names: "Jobi"
+      - family-names: "Aron"
+        given-names: "Adam"
+      - family-names: "Swann"
+        given-names: "Nicole C."
+  - type: article
+    title: "MNE-BIDS: Organizing electrophysiological data into the BIDS format and facilitating their analysis"
+    journal: "Journal of Open Source Software"
+    doi: "10.21105/joss.01896"
+    year: 2019
+    authors:
+      - family-names: "Appelhoff"
+        given-names: "S."
+      - family-names: "Sanderson"
+        given-names: "M."
+      - family-names: "Brooks"
+        given-names: "T."
+      - family-names: "van Vliet"
+        given-names: "M."
+      - family-names: "Quentin"
+        given-names: "R."
+      - family-names: "Holdgraf"
+        given-names: "C."
+      - family-names: "Chaumon"
+        given-names: "M."
+      - family-names: "Mikulan"
+        given-names: "E."
+      - family-names: "Tavabi"
+        given-names: "K."
+      - family-names: "Höchenberger"
+        given-names: "R."
+      - family-names: "Welke"
+        given-names: "D."
+      - family-names: "Brunner"
+        given-names: "C."
+      - family-names: "Rockhill"
+        given-names: "A."
+      - family-names: "Larson"
+        given-names: "E."
+      - family-names: "Gramfort"
+        given-names: "A."
+      - family-names: "Jas"
+        given-names: "M."

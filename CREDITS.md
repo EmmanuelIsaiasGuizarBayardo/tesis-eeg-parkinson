@@ -12,9 +12,15 @@ con ellos. La narrativa describe aportaciones, no cargos.
 
 ### Emmanuel Isaías Guízar-Bayardo
 
-*[COMPLETAR: roles CRediT, por ejemplo Conceptualization · Software · Writing – original draft]*
+*Conceptualization · Methodology · Software · Formal analysis · Visualization · Writing – original draft*
 
-[COMPLETAR: qué hizo, en una o dos frases.]
+Diseñó la réplica del pipeline de Aljalal et al. (2022) y su validación por sujetos, implementó el preprocesamiento y el análisis, y redactó la tesis.
+
+### Miguel Serrano-Reyes
+
+*Supervision*
+
+Dirige la tesis.
 
 <!-- Por cada persona más: una sección "### Nombres Apellidos", sus roles en
      cursiva y su narrativa. Si además es autora, va en CITATION.cff con el mismo
@@ -30,7 +36,7 @@ con ellos. La narrativa describe aportaciones, no cargos.
      solo en 'references' de CITATION.cff; las bibliotecas y sus versiones ya
      están en pyproject.toml y uv.lock. -->
 
-Ninguno por ahora.
+El preprocesamiento reimplementa en Python el pipeline de EEGLAB del manual propio del autor (se deriva). Integra tal cual el modelo ICLabel (Pion-Tonachini et al., 2019) mediante mne-icalabel, los criterios de canales ruidosos de PREP (Bigdely-Shamlo et al., 2015) mediante pyprep, y la lectura BIDS de MNE-BIDS. Los datos son de Rockhill et al. (2021).
 
 ---
 

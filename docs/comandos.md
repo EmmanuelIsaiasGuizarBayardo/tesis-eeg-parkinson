@@ -131,17 +131,19 @@ git --no-pager diff --stat
 <details>
 <summary><b>Publicar una versión</b></summary>
 
-Antes de cada presentación pública. Primero sube el número en `pyproject.toml` y en
-`CITATION.cff` (`version`), y fija `date-released` en el CFF con la fecha de hoy.
+Antes de cada presentación pública, o cuando haya cambios que publicar. Un solo
+comando sube el número en `pyproject.toml` y en `CITATION.cff`, fija la fecha de
+lanzamiento, regenera `requirements.txt`, corre las pruebas, hace el commit,
+etiqueta y sube:
 
 ```
-uv run pytest -q
-git commit -am "Publicar la versión 1.0.0"
-git tag -a v1.0.0 -m "Evento donde se presentó"
-git push --follow-tags
+uv run python tools/publicar.py 1.0.0 "Evento donde se presentó"
 ```
 
-La prueba de gobernanza falla si las dos versiones no coinciden.
+Se detiene en el primer paso que falle, siempre antes de etiquetar, y se niega a
+reutilizar una etiqueta: una etiqueta publicada no se mueve. En GitHub,
+`.github/workflows/etiqueta.yml` marca en rojo cualquier etiqueta que no coincida
+con la versión del paquete.
 
 </details>
 
@@ -152,12 +154,14 @@ Traer las mejoras del estándar, con el árbol limpio. Sin `--defaults`, pregunt
 
 ```
 uvx copier update --trust
+uv sync
+uv run python tools/export_requirements.py
 git --no-pager diff --stat
 git add -A
 git commit -m "Actualizar a la plantilla DUNNE"
 ```
 
-El commit final no es opcional: sin él, la siguiente actualización encuentra el árbol sucio y se niega a correr.
+La actualización no toca el entorno, porque Copier corre sus tareas antes de reaplicar los cambios del proyecto; por eso `uv sync` va después. El commit final no es opcional: sin él, la siguiente actualización encuentra el árbol sucio y se niega a correr.
 
 Ver qué versión de la plantilla tiene este proyecto.
 
