@@ -10,6 +10,17 @@ from scipy import signal
 from tesis_eeg_parkinson.preprocessing.config import PreprocessingConfig
 
 
+def apply_notch(raw: mne.io.BaseRaw, cfg: PreprocessingConfig) -> mne.io.BaseRaw:
+    """Notch FIR de fase cero en la línea y sus armónicos, en el lugar.
+
+    Va antes de detectar canales, como en PREP, y deja la copia para ICA sin
+    ruido de línea. No altera la banda final de 0.5 a 32 Hz.
+    """
+    if cfg.notch_freqs:
+        raw.notch_filter(list(cfg.notch_freqs), method="fir", phase="zero", verbose="error")
+    return raw
+
+
 def ica_copy(raw: mne.io.BaseRaw, cfg: PreprocessingConfig) -> mne.io.BaseRaw:
     """Copia filtrada con FIR de fase cero, solo para ajustar la ICA.
 

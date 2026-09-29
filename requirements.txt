@@ -49,6 +49,7 @@ decorator==5.3.1
     # via mne
 distlib==0.4.3
     # via virtualenv
+eeglabio==0.1.4
 executing==2.2.1
     # via stack-data
 figuras-cientificas @ git+https://github.com/EmmanuelIsaiasGuizarBayardo/figuras-cientificas@80e4d054f7727f41aaa378cde48ba743d3506e59
@@ -132,6 +133,7 @@ numpy==2.5.3
     #   cmcrameri
     #   colorspacious
     #   contourpy
+    #   eeglabio
     #   matplotlib
     #   mne
     #   mne-bids
@@ -233,12 +235,14 @@ requests==2.34.2
 rich==15.0.0
     # via
     #   openneuro-py
+    #   tesis-eeg-parkinson
     #   typer
 ruff==0.16.9
 scikit-learn==1.9.1
     # via tesis-eeg-parkinson
 scipy==1.18.1
     # via
+    #   eeglabio
     #   mne
     #   mne-bids
     #   mne-icalabel

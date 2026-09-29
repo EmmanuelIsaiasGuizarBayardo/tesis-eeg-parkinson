@@ -32,7 +32,7 @@ def fit_ica(raw_copy: mne.io.BaseRaw, n_components: int, cfg: PreprocessingConfi
         method="infomax",
         fit_params={"extended": True},
         max_iter=cfg.ica_max_iter,
-        random_state=cfg.seed,
+        rng=cfg.seed,
     )
     ica.fit(raw_copy, verbose="error")
     return ica

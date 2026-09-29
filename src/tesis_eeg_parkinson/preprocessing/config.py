@@ -36,6 +36,10 @@ ICLABEL_CLASSES: tuple[str, ...] = (
 # está documentado; ver docs/preprocesamiento.md).
 REST_ONSET_VALUE = "1"
 
+# Red eléctrica de San Diego. El PowerLineFrequency de los sidecars no es
+# confiable: 9 registros declaran 50 Hz.
+GRID_LINE_FREQ = 60.0
+
 
 @dataclass(frozen=True)
 class PreprocessingConfig:
@@ -46,12 +50,18 @@ class PreprocessingConfig:
     name : str
         Nombre del perfil; nombra la carpeta de derivados.
     montage : str
-        Montaje estándar de MNE para las posiciones de los electrodos.
+        Montaje estándar de MNE para las posiciones de los electrodos
+        (``colin27_1005`` es el nombre vigente de ``standard_1005``).
+    notch_freqs : tuple of float
+        Frecuencias del notch aplicado al registro completo antes de detectar
+        canales; vacío = sin notch. No altera la banda final de 0.5 a 32 Hz.
     crop_to_rest_onset : bool
         Recortar el registro desde el evento de inicio del reposo.
     detect_bad_channels : bool
-        Detectar canales malos (criterios deterministas de PREP) e interpolarlos
-        antes de la CAR.
+        Detectar canales malos con la referencia robusta de PREP e
+        interpolarlos antes de la CAR.
+    prep_max_iterations : int
+        Iteraciones máximas de la referencia robusta.
     max_bad_channels : int
         Por encima de este número, el registro se marca para revisión manual.
     ica_copy_l_freq, ica_copy_h_freq : float, float or None
@@ -79,9 +89,11 @@ class PreprocessingConfig:
     """
 
     name: str
-    montage: str = "standard_1005"
+    montage: str = "colin27_1005"
+    notch_freqs: tuple[float, ...] = (60.0, 120.0, 180.0, 240.0)
     crop_to_rest_onset: bool = True
     detect_bad_channels: bool = True
+    prep_max_iterations: int = 4
     max_bad_channels: int = 3
     ica_copy_l_freq: float = 1.0
     ica_copy_h_freq: float | None = 100.0
@@ -106,6 +118,7 @@ V2 = PreprocessingConfig(name="v2")
 
 LEGACY = PreprocessingConfig(
     name="legacy",
+    notch_freqs=(),
     crop_to_rest_onset=False,
     detect_bad_channels=False,
     ica_copy_h_freq=None,

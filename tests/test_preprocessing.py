@@ -25,6 +25,7 @@ from tesis_eeg_parkinson.preprocessing.config import LEGACY, SCALP_CHANNELS, V2
 from tesis_eeg_parkinson.preprocessing.epochs import make_epochs
 from tesis_eeg_parkinson.preprocessing.filters import (
     apply_final_filter,
+    apply_notch,
     final_filter_coefficients,
 )
 from tesis_eeg_parkinson.preprocessing.ica import select_artifact_components
@@ -63,7 +64,7 @@ def _synthetic_eeg(
         data = np.vstack([data, 1e-5 * rng.standard_normal((len(extra), n))])
     info = mne.create_info(names, SFREQ, "eeg")
     raw = mne.io.RawArray(data, info)
-    raw.set_montage("standard_1005", on_missing="ignore")
+    raw.set_montage("colin27_1005", on_missing="ignore")
     raw.info["line_freq"] = 60.0
     return raw
 
@@ -143,15 +144,32 @@ def test_select_artifact_components_follows_manual_criterion() -> None:
         select_artifact_components(proba[:, :6], 0.80, 0.05)
 
 
+def test_notch_removes_line_and_keeps_band() -> None:
+    n = int(60 * SFREQ)
+    t = np.arange(n) / SFREQ
+    data = np.vstack([np.sin(2 * np.pi * f * t) for f in (10.0, 60.0, 120.0)]) * 1e-5
+    raw = mne.io.RawArray(data.copy(), mne.create_info(3, SFREQ, "eeg"))
+    apply_notch(raw, V2)
+    core = slice(int(10 * SFREQ), int(50 * SFREQ))
+    gain_db = 20 * np.log10(raw.get_data()[:, core].std(axis=1) / data[:, core].std(axis=1))
+    assert abs(gain_db[0]) < 0.01  # la banda de interés no cambia
+    assert gain_db[1] < -30 and gain_db[2] < -30
+    legacy = mne.io.RawArray(data.copy(), mne.create_info(3, SFREQ, "eeg"))
+    apply_notch(legacy, LEGACY)  # sin notch en el perfil legacy
+    np.testing.assert_array_equal(legacy.get_data(), data)
+
+
 def test_bad_channel_detection_finds_injected_channels() -> None:
     raw = _synthetic_eeg(40.0, seed=3)
-    assert detect_bad_channels(raw, V2)["bad_all"] == []
+    assert detect_bad_channels(raw, V2).bads == []
     data = raw.get_data()
     data[4] = 0.0  # FC1 plano
     data[20] = np.random.default_rng(9).standard_normal(data.shape[1]) * 2e-4  # CP6 ruidoso
     raw._data = data
-    found = detect_bad_channels(raw, V2)
-    assert {"FC1", "CP6"} <= set(found["bad_all"])
+    report = detect_bad_channels(raw, V2)
+    assert {"FC1", "CP6"} <= set(report.bads)
+    assert report.correlation_bad_fraction["CP6"] > 0.5
+    assert report.correlation_bad_fraction["Fp1"] < 0.01
 
 
 def test_interpolation_and_car_fix_rank() -> None:
@@ -201,6 +219,8 @@ def test_preprocess_recording_end_to_end(
     assert len(epochs.times) == int(10 * SFREQ)
     assert qc["ica"]["n_components"] == len(SCALP_CHANNELS) - 1 - qc["n_interpolated"]
     assert qc["config"]["name"] == "v2" and "git_sha" in qc["run_context"]
+    assert qc["exclude_primary"] and qc["exclude_reason"] == "curator_preprocessed"
+    assert set(qc["bad_channels"]["correlation_bad_fraction"]) == set(SCALP_CHANNELS)
     assert (deriv / f"{stem}_desc-qc.json").exists()
     assert (tmp_path / "qc" / "preproc-v2" / f"{stem}_psd.pdf").exists()
 

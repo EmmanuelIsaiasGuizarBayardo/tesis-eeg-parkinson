@@ -484,6 +484,19 @@ wheels = [
 ]
 
 [[package]]
+name = "eeglabio"
+version = "0.1.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "scipy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/32/25/17ddde4a8c10d0293ad0dff949061fadd103ebb830522adea95733775931/eeglabio-0.1.4.tar.gz", hash = "sha256:8e772570bb2a8fb13286fa2dd321e831686c097b34409c97679fb8c84b46e7a2", size = 7173096, upload-time = "2026-09-25T15:17:42.85Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/53/c4/8e29e3d3d7270e8545da6e616506a94d17f3aab44a42390977763a1f2363/eeglabio-0.1.4-py3-none-any.whl", hash = "sha256:eae45ee0b722ddd1ad36fd151e41d7730229799fd600b2cea61c1308407837b8", size = 11776, upload-time = "2026-09-25T15:17:41.39Z" },
+]
+
+[[package]]
 name = "executing"
 version = "2.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2143,12 +2156,14 @@ dependencies = [
     { name = "pandas" },
     { name = "pyprep" },
     { name = "pyyaml" },
+    { name = "rich" },
     { name = "scikit-learn" },
     { name = "scipy" },
 ]
 
 [package.dev-dependencies]
 dev = [
+    { name = "eeglabio" },
     { name = "pre-commit" },
     { name = "pybv" },
     { name = "pytest" },
@@ -2170,12 +2185,14 @@ requires-dist = [
     { name = "pandas" },
     { name = "pyprep", specifier = ">=0.9.0" },
     { name = "pyyaml" },
+    { name = "rich", specifier = ">=15.0.0" },
     { name = "scikit-learn" },
     { name = "scipy" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "eeglabio", specifier = ">=0.1.4" },
     { name = "pre-commit" },
     { name = "pybv", specifier = ">=0.8.1" },
     { name = "pytest" },

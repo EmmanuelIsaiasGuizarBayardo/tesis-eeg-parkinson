@@ -25,10 +25,13 @@ Revisado en los metadatos de la versión 1.0.5 (Rockhill et al., 2021).
   sub-hc4). Se interpreta como inicio del reposo: con él, sub-pd6 ON queda en unos
   193 s, como los demás. La interpretación es inferida, no documentada.
 - **Procedencia heterogénea.** Según `participants.tsv`, las sesiones ON de sub-pd6
-  y sub-pd16 son datos preprocesados por los curadores, no crudos. Sus metadatos
-  difieren del resto (línea de 50 Hz en vez de 60; corte superior de 256 Hz en vez
-  de 104). Se marcan en el QC y se evalúan con análisis de sensibilidad.
-- **Duración.** Unos 3.2 min por registro; línea eléctrica de 60 Hz.
+  y sub-pd16 son datos preprocesados por los curadores, no crudos. Su espectro lo
+  confirma (ver "Exclusión del análisis principal").
+- **Metadatos de la red eléctrica.** 9 registros declaran `PowerLineFrequency` de
+  50 Hz (hc8, hc21, hc25, hc31, hc32, pd6 on, pd13 on, pd16 on y pd22 on), aunque
+  la red de San Diego es de 60 Hz. El campo no es confiable: el pipeline usa 60 Hz
+  y registra la discrepancia en el QC.
+- **Duración.** Unos 3.2 min por registro.
 - **Advertencia de los curadores.** El README del dataset desaconseja clasificar PD
   contra controles con aprendizaje automático por el tamaño de la muestra y pide
   contactar a los curadores antes de publicar en revistas arbitradas.
@@ -37,9 +40,10 @@ Revisado en los metadatos de la versión 1.0.5 (Rockhill et al., 2021).
 
 | Paso | `legacy` | `v2` | Motivo |
 |---|---|---|---|
-| Lectura | 32 canales, montaje standard_1005 | Igual | Selección por nombre |
+| Lectura | 32 canales, montaje colin27_1005 | Igual | Selección por nombre |
 | Recorte | Ninguno | Desde el evento "1", si existe | Excluir el tramo previo al reposo |
-| Canales malos | Ninguno | PREP determinista + interpolación | Un canal ruidoso contamina la CAR |
+| Notch | Ninguno | 60, 120, 180 y 240 Hz | PREP quita la línea antes de referenciar |
+| Canales malos | Ninguno | Referencia robusta de PREP + interpolación | Un canal ruidoso contamina la CAR |
 | Referencia | CAR | CAR | Necesaria |
 | Copia para ICA | FIR pasa-altas 1 Hz | FIR 1 a 100 Hz | Especificación de ICLabel |
 | ICA | Infomax extendido | Igual; n = 31 menos interpolados | La CAR reduce el rango en 1 |
@@ -50,19 +54,34 @@ Revisado en los metadatos de la versión 1.0.5 (Rockhill et al., 2021).
 
 ## Decisiones y su justificación
 
-**Canales malos.** Se usan los criterios deterministas de PREP (Bigdely-Shamlo et
-al., 2015) mediante pyprep: señal plana o ausente, desviación robusta (z > 5),
-correlación máxima menor que 0.4 en más del 1% de ventanas de 1 s, y ruido de alta
-frecuencia (z > 5). RANSAC se excluye porque es estocástico y no aporta como primera
-barrera. Los canales detectados se interpolan por splines esféricos antes de la CAR.
-Con más de 3 canales malos (≈10%), el registro se marca para revisión manual.
+**Canales malos.** La primera versión aplicaba los criterios de PREP sobre datos
+todavía referenciados al CMS y con ruido de línea, y marcó 25 de 46 registros para
+revisión: Cz en 29 y C3 en 26, casi siempre por `bad_by_correlation`, y más en HC
+(5.9 canales en promedio) que en PD (2.4 off y 3.3 on). PREP detecta contra una
+referencia robusta, después de quitar la línea (Bigdely-Shamlo et al., 2015). `v2`
+aplica primero el notch y después usa `pyprep.Reference` sin RANSAC y sin
+interpolar, con los umbrales por defecto; la interpolación por splines esféricos y
+la CAR van después, explícitas. El QC guarda la detección con y sin referencia
+robusta, y la fracción de ventanas de 1 s con correlación máxima < 0.4 por canal: el
+criterio marca con más del 1%, que en 3 min son unas 2 ventanas. Los umbrales no se
+ajustan para igualar grupos, porque sería una decisión guiada por la etiqueta: si la
+diferencia entre grupos persiste, se reporta y entra al análisis de sensibilidad,
+con y sin interpolación. Con más de 3 canales malos, el registro se marca para
+revisión.
+
+**Notch.** FIR de fase cero en 60 Hz y armónicos, sobre el registro completo. No
+altera la banda final y evita que la ICA gaste componentes en ruido de línea: en la
+primera versión, 82 de los IC excluidos eran "line noise".
 
 **ICA.** Infomax extendido con una semilla fija. El número de componentes es el
 rango de los datos: 31 por la CAR, menos uno por cada canal interpolado. La ICA se
 ajusta sobre una copia filtrada y sus pesos se aplican al registro sin filtrar, de
 modo que la banda de 0.5 a 1 Hz se conserva (estrategia de transferencia del manual).
 
-**ICLabel.** El modelo está diseñado para componentes de infomax extendido sobre
+**ICLabel.** En `legacy` (etiquetas sobre el maestro) 194 de los IC excluidos
+fueron "other"; sobre la copia filtrada dominan "muscle" y "line noise". La limpieza
+original de la tesis probablemente quitaba, sobre todo, componentes de contenido
+desconocido. El modelo está diseñado para componentes de infomax extendido sobre
 datos con referencia promedio y filtrados entre 1 y 100 Hz, y recibe la misma
 instancia con la que se ajustó la ICA (Pion-Tonachini et al., 2019). Por eso en
 `v2` se etiqueta sobre la copia; el legado lo hacía sobre el maestro, con deriva de
@@ -88,9 +107,22 @@ filtrada, decidido antes de ver cualquier resultado de clasificación. El númer
 **Unidades.** Todo el pipeline trabaja en voltios, como MNE. La conversión a µV
 ocurre en un solo lugar, `tesis_eeg_parkinson/units.py`.
 
-**Fuera a propósito.** ASR, autoreject, filtro notch (la línea de 60 Hz queda por
-encima del corte de 32 Hz), los canales EXG (su colocación no está documentada) y
-dipfit.
+**Intensidad de limpieza por grupo.** PD off pierde más IC (8.2 contra 6.1 en HC)
+y más épocas por el umbral pico a pico (1.4 contra 0.6 por registro). Es plausible
+por temblor y actividad muscular sin medicación; se reporta por grupo y entra al
+análisis de sensibilidad.
+
+**Exclusión del análisis principal.** Regla fijada antes de ver cualquier
+clasificación: una sesión sin pico de red eléctrica o con forma espectral distinta
+sale del análisis principal y queda en el de sensibilidad. Las sesiones ON de sub-pd6
+y sub-pd16 la cumplen: no tienen pico de 60 Hz, tienen una meseta cerca de −30 dB por
+debajo de ~1.5 Hz con subida brusca en ~2 Hz (pasa-altas previo) y la CAR casi no
+cambia su espectro (probable referencia promedio previa). El QC las marca con
+`exclude_primary`. Consecuencia: Off vs On queda con 13 pares, On vs HC con 13
+sesiones ON y Off vs HC conserva los 15 OFF.
+
+**Fuera a propósito.** ASR, autoreject, los canales EXG (su colocación no está
+documentada) y dipfit.
 
 ## Salidas
 
@@ -102,10 +134,16 @@ data/processed/preproc-<perfil>/
     ├── sub-XX_ses-YY_task-rest_desc-clean_epo.fif
     └── sub-XX_ses-YY_task-rest_desc-qc.json
 results/qc/preproc-<perfil>/sub-XX_ses-YY_task-rest_psd.pdf
+results/qc/regression_matlab.pdf
 ```
 
-El JSON de QC registra el inicio del reposo, la procedencia, los canales malos por
-criterio, las probabilidades de ICLabel de cada componente, los componentes
+La figura de QC muestra tres etapas con la misma referencia (tras CAR, tras ICA y
+final): mediana entre canales con banda de percentiles 10 a 90, etiquetas directas y
+la red eléctrica en 60 Hz. Sigue las reglas de `figuras_cientificas`.
+
+El JSON de QC registra el inicio del reposo, la procedencia, la marca de exclusión,
+los canales malos por criterio (con y sin referencia robusta) y su fracción de
+ventanas con baja correlación, las probabilidades de ICLabel de cada componente, los componentes
 excluidos, las épocas conservadas y descartadas, el perfil y el `RunContext`.
 
 ## Validación
@@ -113,11 +151,14 @@ excluidos, las épocas conservadas y descartadas, el perfil y el `RunContext`.
 **Automática** (`tests/test_preprocessing.py`, solo señales sintéticas):
 
 - el filtro SOS da −3.01 dB por pasada en 0.5 y 32 Hz;
+- el notch atenúa 60 y 120 Hz más de 30 dB sin tocar 10 Hz, y `legacy` no lo aplica;
 - en fase cero, un tono de 10 Hz se conserva dentro de 1%, y los de 50 y 60 Hz se
   atenúan más de 40 y 55 dB;
 - el perfil `legacy` reproduce `filtfilt` de MATLAB;
 - el criterio de ICLabel se aplica tal como en el manual;
 - PREP detecta un canal plano y uno ruidoso inyectados, y ninguno en datos limpios;
+- la regresión contra EEGLAB da concordancia perfecta con datos idénticos, empareja
+  canales por nombre y lee un `.set` escrito por EEGLAB-io en voltios;
 - tras interpolar y referenciar, la suma entre canales es cero y el rango es el esperado;
 - cada época mide 5,120 muestras sobre una rejilla fija, y el rechazo quita la época
   con una espiga de 400 µV;
@@ -125,9 +166,11 @@ excluidos, las épocas conservadas y descartadas, el perfil y el `RunContext`.
 - el registro completo produce épocas, JSON y figura de QC;
 - nada puede escribirse dentro de `data/raw/`.
 
-**Contra el legado.** Con el perfil `legacy` se comparan las épocas contra los
-`*_clean.set` del manual, si se conservan (correlación por canal y espectro), y las
-features y exactitudes contra `results_full.csv`. La ICA no es idéntica entre EEGLAB
+**Contra el legado.** `compare-legacy` compara las épocas del perfil `legacy`
+contra los `*_clean.set` del manual en `data/processed/legacy-matlab/`: correlación
+de Pearson por canal, error RMS relativo y diferencia de potencia por banda (delta,
+theta, alfa y beta, en dB). Después, las features y exactitudes contra
+`results_full.csv`. La ICA no es idéntica entre EEGLAB
 y MNE, así que se espera concordancia, no igualdad. Después se cambia un factor a la
 vez: filtro SOS, ICLabel sobre la copia, recorte, canales malos y rechazo de épocas.
 
@@ -143,6 +186,7 @@ uv run python tools/download_ds002778.py
 uv run tesis-eeg-parkinson preprocess --profile legacy
 uv run tesis-eeg-parkinson preprocess --profile v2
 uv run tesis-eeg-parkinson preprocess --profile v2 --subject pd6 pd16
+uv run tesis-eeg-parkinson compare-legacy
 ```
 
 ## Referencias

@@ -21,6 +21,7 @@ dependencies = [
     "pyprep>=0.9.0",
     "openneuro-py>=2026.9.1",
     "figuras-cientificas",
+    "rich>=15.0.0",
 ]
 
 [project.scripts]
@@ -33,6 +34,7 @@ dev = [
     "pre-commit",
     "pyyaml",
     "pybv>=0.8.1",
+    "eeglabio>=0.1.4",
 ]
 
 [build-system]
