@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "Si usas este proyecto en un trabajo académico, cítalo así."
+title: "Tesis_EEG_Parkinson"
+abstract: "Detección de enfermedad de Parkinson en EEG: validación por sujetos y transferibilidad a Emotiv EPOC X."
+type: software
+license: MIT
+repository-code: "https://github.com/EmmanuelIsaiasGuizarBayardo/tesis-eeg-parkinson"
+version: "0.1.0"
+
+# Autores: quienes aparecen al citar. Cada uno tiene su sección en CREDITS.md
+# con el mismo nombre; tests/test_gobernanza.py verifica la correspondencia.
+authors:
+  - given-names: "Emmanuel Isaías"
+    family-names: "Guízar-Bayardo"
+
+# Datos y software de terceros: su referencia formal vive solo aquí.
+# references:
+#   - type: data
+#     title: "Título del dataset"
+#     doi: "10.xxxx/..."   # con versión, si el repositorio versiona sus DOI
+#     license: CC0-1.0
+#     authors:
+#       - family-names: "Apellido"
+#         given-names: "Nombre"
