@@ -9,7 +9,7 @@ lo produjo queda registrado.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import Any, Literal
 
 # Montaje BioSemi 32 en el orden del archivo BDF (channels.tsv de ds002778).
@@ -58,8 +58,10 @@ class PreprocessingConfig:
     crop_to_rest_onset : bool
         Recortar el registro desde el evento de inicio del reposo.
     detect_bad_channels : bool
-        Detectar canales malos con la referencia robusta de PREP e
-        interpolarlos antes de la CAR.
+        Correr la detección de PREP (referencia robusta) antes de la CAR.
+    interpolate : {"unusable", "prep"}
+        Qué canales se interpolan: solo los inutilizables (planos o con NaN),
+        o todos los que marca PREP. Ver docs/preprocesamiento.md.
     prep_max_iterations : int
         Iteraciones máximas de la referencia robusta.
     max_bad_channels : int
@@ -93,6 +95,7 @@ class PreprocessingConfig:
     notch_freqs: tuple[float, ...] = (60.0, 120.0, 180.0, 240.0)
     crop_to_rest_onset: bool = True
     detect_bad_channels: bool = True
+    interpolate: Literal["unusable", "prep"] = "unusable"
     prep_max_iterations: int = 4
     max_bad_channels: int = 3
     ica_copy_l_freq: float = 1.0
@@ -127,4 +130,7 @@ LEGACY = PreprocessingConfig(
     reject_ptp_uv=None,
 )
 
-PROFILES: dict[str, PreprocessingConfig] = {p.name: p for p in (V2, LEGACY)}
+# Variante de sensibilidad: interpola todo lo que marca PREP.
+V2_PREP = replace(V2, name="v2-prep", interpolate="prep")
+
+PROFILES: dict[str, PreprocessingConfig] = {p.name: p for p in (V2, V2_PREP, LEGACY)}

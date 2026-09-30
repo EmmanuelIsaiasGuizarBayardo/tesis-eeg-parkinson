@@ -28,7 +28,11 @@ from rich.progress import (
 from rich.table import Table
 
 from tesis_eeg_parkinson.preprocessing import PROFILES, run_dataset
-from tesis_eeg_parkinson.validation.legacy_matlab import compare_dataset, plot_regression
+from tesis_eeg_parkinson.validation.legacy_matlab import (
+    compare_dataset,
+    ica_association,
+    plot_regression,
+)
 
 RAIZ = Path.cwd()
 console = Console()
@@ -64,7 +68,17 @@ def _group(row: pd.Series) -> str:
 def _print_summary(summary: pd.DataFrame, profile: str) -> None:
     """Tabla por grupo: lo que conviene revisar antes de abrir los TSV."""
     table = Table(title=f"Preprocesamiento, perfil {profile}")
-    for col in ("Grupo", "Reg.", "Errores", "Interp.", "ICs", "Épocas", "Revisar", "Excluir"):
+    for col in (
+        "Grupo",
+        "Reg.",
+        "Errores",
+        "PREP",
+        "Interp.",
+        "ICs",
+        "Épocas",
+        "Revisar",
+        "Excluir",
+    ):
         table.add_column(col, justify="right")
     data = summary.assign(grupo=summary.apply(_group, axis=1))
     ok = data[data["error"].fillna("") == ""]
@@ -74,6 +88,7 @@ def _print_summary(summary: pd.DataFrame, profile: str) -> None:
             str(group),
             str(len(rows)),
             str(len(rows) - len(good)),
+            f"{good['n_prep_flagged'].mean():.1f}" if len(good) else "-",
             f"{good['n_interpolated'].mean():.1f}" if len(good) else "-",
             f"{good['n_ics_excluded'].mean():.1f}" if len(good) else "-",
             f"{int(good['n_epochs_kept'].sum())}/{int(good['n_epochs_total'].sum())}",
@@ -82,7 +97,8 @@ def _print_summary(summary: pd.DataFrame, profile: str) -> None:
         )
     console.print(table)
     console.print(
-        "Interp. e ICs: media por registro. Revisar: más de 3 canales malos. "
+        "PREP, Interp. e ICs: media por registro (canales que marca PREP, canales "
+        "interpolados, componentes excluidos). Revisar: más de 3 interpolados. "
         "Excluir: fuera del análisis principal."
     )
 
@@ -127,6 +143,10 @@ def _compare_legacy(args: argparse.Namespace) -> None:
             f"mínima {ok['r_median'].min():.3f}; error RMS relativo: mediana "
             f"{ok['rel_rms'].median():.3f}."
         )
+        for metric, (rho, p) in ica_association(ok).items():
+            console.print(
+                f"Spearman |EEGLAB − MNE componentes| vs {metric}: rho = {rho:.2f}, p = {p:.2g}"
+            )
 
 
 def main(argv: list[str] | None = None) -> None:

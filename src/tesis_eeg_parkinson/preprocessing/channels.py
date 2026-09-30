@@ -19,9 +19,12 @@ class BadChannelReport:
 
     Attributes
     ----------
-    bads : list of str
-        Canales a interpolar: los detectados sobre los datos con referencia
-        robusta, más los inutilizables (planos o con NaN).
+    prep_bads : list of str
+        Todo lo que marca PREP: lo detectado con referencia robusta más lo
+        inutilizable según pyprep (plano, NaN o SNR bajo).
+    unusable : list of str
+        Solo canales planos o con NaN, detectados sin referenciar: fallas del
+        registro que no dependen de la referencia ni de artefactos fisiológicos.
     by_criterion : dict of str to list of str
         Canales por criterio, detectados sobre los datos con referencia robusta.
     by_criterion_unreferenced : dict of str to list of str
@@ -32,7 +35,8 @@ class BadChannelReport:
         Un canal se marca si supera 0.01; en 3 min, eso son unas 2 ventanas.
     """
 
-    bads: list[str]
+    prep_bads: list[str]
+    unusable: list[str]
     by_criterion: dict[str, list[str]]
     by_criterion_unreferenced: dict[str, list[str]]
     correlation_bad_fraction: dict[str, float]
@@ -85,12 +89,25 @@ def detect_bad_channels(raw: mne.io.BaseRaw, cfg: PreprocessingConfig) -> BadCha
         )
         ref.perform_reference(max_iterations=cfg.prep_max_iterations, interpolate_bads=False)
     corr = ref._extra_info["interpolated"]["bad_by_correlation"]["bad_window_fractions"]
+    original = ref.noisy_channels_original
     return BadChannelReport(
-        bads=sorted(ref.raw.info["bads"]),
+        prep_bads=sorted(ref.raw.info["bads"]),
+        unusable=sorted(set(original.get("bad_by_nan", [])) | set(original.get("bad_by_flat", []))),
         by_criterion=_nonempty(ref.noisy_channels_before_interpolation),
         by_criterion_unreferenced=_nonempty(ref.noisy_channels_original),
         correlation_bad_fraction={ch: round(float(f), 4) for ch, f in zip(chs, corr, strict=True)},
     )
+
+
+def channels_to_interpolate(report: BadChannelReport, cfg: PreprocessingConfig) -> list[str]:
+    """Canales que se interpolan según el perfil.
+
+    En ``v2`` solo los inutilizables. En ds002778, PREP marca sobre todo los
+    canales laterales y frontales (T8, FC6, F8, FC5, T7, F7, Fp1, Fp2) por
+    correlación y espectro: artefacto muscular y ocular que corresponde a la ICA,
+    no fallas de electrodo. ``v2-prep`` interpola todo, como sensibilidad.
+    """
+    return list(report.prep_bads) if cfg.interpolate == "prep" else list(report.unusable)
 
 
 def interpolate_bad_channels(raw: mne.io.BaseRaw, bads: list[str]) -> mne.io.BaseRaw:

@@ -7,7 +7,9 @@ segmentan desde la muestra 0, sin recorte ni rechazo) y los mismos canales.
 
 from __future__ import annotations
 
+import json
 import os
+import textwrap
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +21,8 @@ import matplotlib.pyplot as plt
 import mne
 import numpy as np
 import pandas as pd
-from scipy import signal
+from mne.preprocessing import read_ica_eeglab
+from scipy import signal, stats
 
 BANDS: dict[str, tuple[float, float]] = {
     "delta": (0.5, 4.0),
@@ -33,6 +36,43 @@ GROUPS = ("hc", "pd-off", "pd-on")
 def load_matlab_epochs(path: Path) -> mne.Epochs:
     """Lee un ``*_clean.set`` de EEGLAB (MNE convierte de µV a V al leer)."""
     return mne.read_epochs_eeglab(path, verbose="error")
+
+
+def matlab_components_kept(path: Path) -> float:
+    """Componentes de ICA que EEGLAB conservó (filas de ``icaweights``); NaN si no hay ICA."""
+    try:
+        return float(read_ica_eeglab(str(path), verbose="error").n_components_)
+    except Exception:  # un .set sin ICA (p. ej., sintético) no es un error de la regresión
+        return float("nan")
+
+
+def mne_components_kept(epochs_path: Path) -> float:
+    """Componentes que conservó MNE, leídos del JSON de QC junto a las épocas."""
+    qc_path = Path(str(epochs_path).replace("_desc-clean_epo.fif", "_desc-qc.json"))
+    if not qc_path.exists():
+        return float("nan")
+    ica = json.loads(qc_path.read_text(encoding="utf-8"))["ica"]
+    return float(ica["n_components"] - len(ica["excluded"]))
+
+
+def ica_association(table: pd.DataFrame) -> dict[str, tuple[float, float]]:
+    """Spearman entre |diferencia de componentes conservados| y cada métrica.
+
+    Es exploratorio: las sesiones de un mismo paciente no son independientes.
+
+    Returns
+    -------
+    dict
+        Métrica -> (rho, p exacto de scipy).
+    """
+    ok = table.dropna(subset=["ics_kept_diff"])
+    if len(ok) < 3:
+        return {}
+    x = ok["ics_kept_diff"].abs()
+    return {
+        col: tuple(float(v) for v in stats.spearmanr(x, ok[col]))
+        for col in ("r_median", "rel_rms", "delta_db")
+    }
 
 
 def compare_epochs(ours: mne.Epochs, reference: mne.Epochs) -> dict[str, Any]:
@@ -114,6 +154,10 @@ def compare_dataset(ours_root: Path, matlab_root: Path) -> pd.DataFrame:
         try:
             ours = mne.read_epochs(ours_path, verbose="error")
             row.update(compare_epochs(ours, load_matlab_epochs(matlab_path)))
+            row["ics_kept_matlab"] = matlab_components_kept(matlab_path)
+            row["ics_kept_mne"] = mne_components_kept(ours_path)
+            # Positivo: MNE quitó más componentes que EEGLAB.
+            row["ics_kept_diff"] = row["ics_kept_matlab"] - row["ics_kept_mne"]
             row["error"] = ""
         except Exception as err:  # se reporta y se sigue con el siguiente par
             row["error"] = f"{type(err).__name__}: {err}"
@@ -122,17 +166,21 @@ def compare_dataset(ours_root: Path, matlab_root: Path) -> pd.DataFrame:
 
 
 def plot_regression(table: pd.DataFrame, fname: Path, seed: int = 28) -> Path:
-    """Correlación mediana y error RMS relativo por registro, con puntos por grupo."""
+    """Concordancia por registro y su relación con la diferencia de componentes.
+
+    a: correlación mediana por canal; b: error RMS relativo; c: correlación
+    mediana contra la diferencia de componentes conservados (EEGLAB menos MNE).
+    """
     os.environ.setdefault("SOURCE_DATE_EPOCH", "0")
     fc.usar_estilo("publicacion")
-    size = fc.tamano_figura("doble_columna", alto_mm=60)
-    fig, axes = plt.subplots(1, 2, figsize=size, layout="none")  # márgenes fijos para el pie
-    fig.subplots_adjust(bottom=0.28, wspace=0.35)
+    size = fc.tamano_figura("doble_columna", alto_mm=62)
+    fig, axes = plt.subplots(1, 3, figsize=size, layout="none")  # márgenes fijos para el pie
+    fig.subplots_adjust(left=0.07, right=0.97, bottom=0.36, wspace=0.42)
     colors = fc.categorica(len(GROUPS))
     rng = np.random.default_rng(seed)  # dispersión horizontal reproducible
     ok = table[table["error"] == ""]
     panels = (("r_median", "Correlación mediana por canal"), ("rel_rms", "Error RMS relativo"))
-    for ax, letter, (column, label) in zip(axes, "ab", panels, strict=True):
+    for ax, letter, (column, label) in zip(axes[:2], "ab", panels, strict=True):
         for i, group in enumerate(GROUPS):
             values = ok.loc[ok["group"] == group, column].to_numpy()
             x = i + rng.uniform(-0.15, 0.15, len(values))
@@ -150,13 +198,40 @@ def plot_regression(table: pd.DataFrame, fname: Path, seed: int = 28) -> Path:
         ax.set_xticks(range(len(GROUPS)), ["HC", "PD off", "PD on"])
         ax.set_ylabel(label)
         fc.letra_panel(ax, letter)
-    fig.text(
-        0.02, 0.02,
-        "Perfil legacy (MNE) contra los *_clean.set de EEGLAB. Un punto por registro; "
-        "línea horizontal: mediana del grupo.\nCorrelación de Pearson por canal sobre las "
-        "épocas concatenadas; error RMS relativo a EEGLAB.",
-        va="bottom", ha="left",
-    )  # fmt: skip
+    ax = axes[2]
+    if "ics_kept_diff" in ok:
+        for i, group in enumerate(GROUPS):
+            rows = ok[ok["group"] == group]
+            style = fc.estilo_serie(i, colors)
+            jitter = rng.uniform(-0.15, 0.15, len(rows))
+            ax.plot(
+                rows["ics_kept_diff"] + jitter,
+                rows["r_median"],
+                linestyle="none",
+                color=style["color"],
+                marker=style.get("marker", "o"),
+                markersize=3,
+            )
+    ax.axvline(0, color="0.5", linestyle=":", linewidth=0.6)
+    ax.set_xlabel("Conservados: EEGLAB − MNE")
+    ax.set_ylabel("Correlación mediana por canal")
+    fc.letra_panel(ax, "c")
+    assoc = ica_association(ok) if "ics_kept_diff" in ok else {}
+    stat = ""
+    if "r_median" in assoc:
+        rho, p = assoc["r_median"]
+        stat = (
+            " En c, Spearman entre la diferencia absoluta y la correlación: "
+            f"ρ = {rho:.2f}, p = {p:.2g} (exploratorio)."
+        )
+    caption = (
+        "Perfil legacy (MNE) contra los *_clean.set de EEGLAB. Un punto por registro; línea "
+        "horizontal: mediana del grupo. Correlación de Pearson por canal sobre las épocas "
+        "concatenadas; error RMS relativo a EEGLAB. En c, componentes de ICA conservados por "
+        "EEGLAB menos los conservados por MNE (positivo: MNE quitó más), con los marcadores de "
+        "a y b y dispersión horizontal de ±0.15 para separar puntos." + stat
+    )
+    fig.text(0.02, 0.02, textwrap.fill(caption, width=128), va="bottom", ha="left")
     fname.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(fname)
     plt.close(fig)

@@ -12,6 +12,7 @@ import pytest
 from tesis_eeg_parkinson.validation.legacy_matlab import (
     compare_dataset,
     compare_epochs,
+    ica_association,
     load_matlab_epochs,
     plot_regression,
 )
@@ -65,5 +66,22 @@ def test_eeglab_roundtrip_and_dataset_table(tmp_path: Path) -> None:
     np.testing.assert_allclose(loaded.get_data(), ours.get_data(), rtol=1e-5, atol=1e-12)
     table = compare_dataset(tmp_path / "preproc-legacy", matlab_dir)
     assert table.loc[0, "error"] == "" and table.loc[0, "r_median"] == pytest.approx(1.0)
+    assert np.isnan(table.loc[0, "ics_kept_matlab"])  # un .set sin ICA no es error
     missing = pd.concat([table, pd.DataFrame([{"group": "pd-off", "error": "sin par"}])])
     assert plot_regression(missing, tmp_path / "fig.pdf").exists()
+
+
+def test_ica_association_detects_monotonic_relation() -> None:
+    diff = np.arange(10.0)
+    table = pd.DataFrame(
+        {
+            "ics_kept_diff": diff,
+            "r_median": 1 - 0.01 * diff,
+            "rel_rms": 0.1 + 0.05 * diff,
+            "delta_db": -0.2 * diff,
+        }
+    )
+    assoc = ica_association(table)
+    assert assoc["r_median"][0] == pytest.approx(-1.0)
+    assert assoc["rel_rms"][0] == pytest.approx(1.0)
+    assert ica_association(table.head(2)) == {}

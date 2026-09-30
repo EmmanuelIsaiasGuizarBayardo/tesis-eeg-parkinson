@@ -15,6 +15,7 @@ from mne_bids import BIDSPath
 
 from tesis_eeg_parkinson.preprocessing.channels import (
     BadChannelReport,
+    channels_to_interpolate,
     detect_bad_channels,
     interpolate_bad_channels,
 )
@@ -100,14 +101,16 @@ def preprocess_recording(
     raw, rec = load_raw(bids_path, cfg)
     apply_notch(raw, cfg)
 
-    report = BadChannelReport([], {}, {}, {})
+    report = BadChannelReport([], [], {}, {}, {})
+    interpolated: list[str] = []
     if cfg.detect_bad_channels:
         stage("canales (PREP)")
         report = detect_bad_channels(raw, cfg)
-        interpolate_bad_channels(raw, report.bads)
+        interpolated = channels_to_interpolate(report, cfg)
+        interpolate_bad_channels(raw, interpolated)
     raw.set_eeg_reference("average", projection=False, verbose="error")
     raw_car = raw.copy() if figures_root is not None else None
-    rank = len(SCALP_CHANNELS) - 1 - len(report.bads)
+    rank = len(SCALP_CHANNELS) - 1 - len(interpolated)
 
     stage("ICA")
     copy = ica_copy(raw, cfg)
@@ -134,8 +137,10 @@ def preprocess_recording(
         "exclude_primary": rec.curator_preprocessed,
         "exclude_reason": EXCLUSION_REASON if rec.curator_preprocessed else "",
         "bad_channels": asdict(report),
-        "n_interpolated": len(report.bads),
-        "needs_review": len(report.bads) > cfg.max_bad_channels,
+        "interpolated": interpolated,
+        "n_interpolated": len(interpolated),
+        "n_prep_flagged": len(report.prep_bads),
+        "needs_review": len(interpolated) > cfg.max_bad_channels,
         "ica": {
             "n_components": rank,
             "excluded": exclude,
@@ -168,8 +173,10 @@ def _summary_row(qc: dict[str, Any]) -> dict[str, Any]:
         "curator_preprocessed": rec["curator_preprocessed"],
         "exclude_primary": qc["exclude_primary"],
         "line_freq_sidecar": rec["line_freq_sidecar"],
-        "bad_channels": ",".join(qc["bad_channels"]["bads"]),
+        "interpolated": ",".join(qc["interpolated"]),
         "n_interpolated": qc["n_interpolated"],
+        "prep_flagged": ",".join(qc["bad_channels"]["prep_bads"]),
+        "n_prep_flagged": qc["n_prep_flagged"],
         "needs_review": qc["needs_review"],
         "n_ics_excluded": len(qc["ica"]["excluded"]),
         "excluded_labels": ",".join(qc["ica"]["excluded_labels"]),

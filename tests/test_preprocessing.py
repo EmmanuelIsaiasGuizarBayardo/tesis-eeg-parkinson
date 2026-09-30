@@ -18,10 +18,11 @@ from mne_bids import BIDSPath, write_raw_bids
 from scipy import signal
 
 from tesis_eeg_parkinson.preprocessing.channels import (
+    channels_to_interpolate,
     detect_bad_channels,
     interpolate_bad_channels,
 )
-from tesis_eeg_parkinson.preprocessing.config import LEGACY, SCALP_CHANNELS, V2
+from tesis_eeg_parkinson.preprocessing.config import LEGACY, SCALP_CHANNELS, V2, V2_PREP
 from tesis_eeg_parkinson.preprocessing.epochs import make_epochs
 from tesis_eeg_parkinson.preprocessing.filters import (
     apply_final_filter,
@@ -161,13 +162,16 @@ def test_notch_removes_line_and_keeps_band() -> None:
 
 def test_bad_channel_detection_finds_injected_channels() -> None:
     raw = _synthetic_eeg(40.0, seed=3)
-    assert detect_bad_channels(raw, V2).bads == []
+    assert detect_bad_channels(raw, V2).prep_bads == []
     data = raw.get_data()
     data[4] = 0.0  # FC1 plano
     data[20] = np.random.default_rng(9).standard_normal(data.shape[1]) * 2e-4  # CP6 ruidoso
     raw._data = data
     report = detect_bad_channels(raw, V2)
-    assert {"FC1", "CP6"} <= set(report.bads)
+    assert {"FC1", "CP6"} <= set(report.prep_bads)
+    assert report.unusable == ["FC1"]  # solo el plano es falla de registro
+    assert channels_to_interpolate(report, V2) == ["FC1"]
+    assert set(channels_to_interpolate(report, V2_PREP)) >= {"FC1", "CP6"}
     assert report.correlation_bad_fraction["CP6"] > 0.5
     assert report.correlation_bad_fraction["Fp1"] < 0.01
 

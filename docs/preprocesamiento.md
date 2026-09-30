@@ -8,6 +8,8 @@ vive en `src/tesis_eeg_parkinson/preprocessing/` y cada parámetro, en
   migración contra los resultados anteriores.
 - **`v2`** es el pipeline de la tesis. Se llega a él desde `legacy` cambiando un
   factor a la vez, para poder atribuir cada diferencia a una decisión.
+- **`v2-prep`** es igual a `v2` pero interpola todo lo que marca PREP. Existe solo
+  como variante del análisis de sensibilidad.
 
 Cada derivado guarda en su JSON de QC el perfil completo y el `RunContext`
 (semilla, commit y estado del árbol).
@@ -43,7 +45,7 @@ Revisado en los metadatos de la versión 1.0.5 (Rockhill et al., 2021).
 | Lectura | 32 canales, montaje colin27_1005 | Igual | Selección por nombre |
 | Recorte | Ninguno | Desde el evento "1", si existe | Excluir el tramo previo al reposo |
 | Notch | Ninguno | 60, 120, 180 y 240 Hz | PREP quita la línea antes de referenciar |
-| Canales malos | Ninguno | Referencia robusta de PREP + interpolación | Un canal ruidoso contamina la CAR |
+| Canales malos | Ninguno | PREP como diagnóstico; se interpolan solo planos o con NaN | Ver abajo |
 | Referencia | CAR | CAR | Necesaria |
 | Copia para ICA | FIR pasa-altas 1 Hz | FIR 1 a 100 Hz | Especificación de ICLabel |
 | ICA | Infomax extendido | Igual; n = 31 menos interpolados | La CAR reduce el rango en 1 |
@@ -54,20 +56,33 @@ Revisado en los metadatos de la versión 1.0.5 (Rockhill et al., 2021).
 
 ## Decisiones y su justificación
 
-**Canales malos.** La primera versión aplicaba los criterios de PREP sobre datos
-todavía referenciados al CMS y con ruido de línea, y marcó 25 de 46 registros para
-revisión: Cz en 29 y C3 en 26, casi siempre por `bad_by_correlation`, y más en HC
-(5.9 canales en promedio) que en PD (2.4 off y 3.3 on). PREP detecta contra una
-referencia robusta, después de quitar la línea (Bigdely-Shamlo et al., 2015). `v2`
-aplica primero el notch y después usa `pyprep.Reference` sin RANSAC y sin
-interpolar, con los umbrales por defecto; la interpolación por splines esféricos y
-la CAR van después, explícitas. El QC guarda la detección con y sin referencia
-robusta, y la fracción de ventanas de 1 s con correlación máxima < 0.4 por canal: el
-criterio marca con más del 1%, que en 3 min son unas 2 ventanas. Los umbrales no se
-ajustan para igualar grupos, porque sería una decisión guiada por la etiqueta: si la
-diferencia entre grupos persiste, se reporta y entra al análisis de sensibilidad,
-con y sin interpolación. Con más de 3 canales malos, el registro se marca para
-revisión.
+**Canales malos.** Se probaron dos versiones de la detección de PREP, y ambas
+marcaron sobre todo artefacto fisiológico, no fallas de electrodo:
+
+- Sobre datos referenciados al CMS y con ruido de línea, 25 de 46 registros quedaron
+  para revisión (Cz en 29, C3 en 26), casi siempre por `bad_by_correlation`.
+- Con la referencia robusta de PREP tras el notch (Bigdely-Shamlo et al., 2015), la
+  interpolación subió a 8.8 canales por registro en HC, 5.9 en PD off y 4.1 en PD on
+  (16 de 32 en sub-hc4). Los canales más marcados fueron T8 (31 registros), FC6 (28),
+  FC5 (27), F8 (26), T7 (23) y F7 (21) por `bad_by_correlation`, y Fp1 y Fp2 por
+  `bad_by_psd`.
+
+Son los canales sobre los músculos temporal y frontal y los que captan parpadeos.
+Una hipótesis adicional, no verificada, es que en un montaje de 32 canales los
+laterales tienen a sus vecinos más lejos y su correlación máxima es menor de por sí;
+el criterio marca con más del 1% de ventanas de 1 s bajo 0.4, que en 3 min son unas
+2 ventanas. Interpolarlos tenía cuatro costos: la ICA se quedaba sin artefactos que
+separar (los IC musculares excluidos bajaron de 115 a 56, y sub-hc4 quedó con
+rango 15 y ningún IC excluido); 8 de los 10 canales más interpolados pertenecen al
+EPOC X, que se reconstruirían desde electrodos que el dispositivo no tiene; HC
+recibía más del doble de interpolación que PD on; y la topografía se suavizaba en un
+tercio del montaje.
+
+Decisión (tomada tras ver el QC, por el patrón espacial y no por las etiquetas):
+`v2` interpola solo los canales planos o con NaN, que son fallas del registro, y
+deja el artefacto muscular y ocular a la ICA; un canal ruidoso aislado lo separa la
+ICA y lo rechaza ICLabel como "channel noise". La detección completa de PREP se
+guarda en el QC, y `v2-prep` la aplica como variante de sensibilidad.
 
 **Notch.** FIR de fase cero en 60 Hz y armónicos, sobre el registro completo. No
 altera la banda final y evita que la ICA gaste componentes en ruido de línea: en la
@@ -157,6 +172,7 @@ excluidos, las épocas conservadas y descartadas, el perfil y el `RunContext`.
 - el perfil `legacy` reproduce `filtfilt` de MATLAB;
 - el criterio de ICLabel se aplica tal como en el manual;
 - PREP detecta un canal plano y uno ruidoso inyectados, y ninguno en datos limpios;
+  `v2` interpola solo el plano y `v2-prep` ambos;
 - la regresión contra EEGLAB da concordancia perfecta con datos idénticos, empareja
   canales por nombre y lee un `.set` escrito por EEGLAB-io en voltios;
 - tras interpolar y referenciar, la suma entre canales es cero y el rango es el esperado;
@@ -170,7 +186,22 @@ excluidos, las épocas conservadas y descartadas, el perfil y el `RunContext`.
 contra los `*_clean.set` del manual en `data/processed/legacy-matlab/`: correlación
 de Pearson por canal, error RMS relativo y diferencia de potencia por banda (delta,
 theta, alfa y beta, en dB). Después, las features y exactitudes contra
-`results_full.csv`. La ICA no es idéntica entre EEGLAB
+`results_full.csv`.
+
+Resultado. La segmentación se reproduce exactamente: las 46 parejas tienen el mismo
+número de épocas. El filtro coincide con `filtfilt` de MATLAB por construcción
+(prueba automática). La limpieza concuerda con una correlación mediana por registro
+de 0.958 (mínima 0.777) y un error RMS relativo mediano de 0.41. La diferencia se
+explica por la ICA: según las filas de `icaweights` de cada `.set`, y suponiendo 31
+componentes (el rango tras la CAR), EEGLAB quitó en la mediana 4 componentes, el valor
+que reportaba el manual, y MNE 6; MNE quita más en 35 de 46 registros. La discrepancia crece con la diferencia
+absoluta de componentes conservados (Spearman con la correlación mediana
+ρ = −0.39, p = 0.008; con la potencia delta ρ = −0.49, p < 0.001; análisis
+exploratorio, las sesiones de un paciente no son independientes). Con el mismo
+número de componentes, la correlación mediana sube a 0.98; lo que queda se atribuye
+a que infomax es estocástico y las implementaciones de EEGLAB y MNE no son idénticas.
+Los canales que más difieren son frontales y laterales (F7, Fp2, AF3, FC5), donde
+actúan los componentes oculares y musculares. La ICA no es idéntica entre EEGLAB
 y MNE, así que se espera concordancia, no igualdad. Después se cambia un factor a la
 vez: filtro SOS, ICLabel sobre la copia, recorte, canales malos y rechazo de épocas.
 
@@ -185,6 +216,7 @@ antes de ver cualquier clasificación.
 uv run python tools/download_ds002778.py
 uv run tesis-eeg-parkinson preprocess --profile legacy
 uv run tesis-eeg-parkinson preprocess --profile v2
+uv run tesis-eeg-parkinson preprocess --profile v2-prep
 uv run tesis-eeg-parkinson preprocess --profile v2 --subject pd6 pd16
 uv run tesis-eeg-parkinson compare-legacy
 ```
