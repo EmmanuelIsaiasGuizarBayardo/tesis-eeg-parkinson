@@ -1,19 +1,19 @@
 """Preprocesamiento de ds002778: migración validada del pipeline de EEGLAB."""
 
 from tesis_eeg_parkinson.preprocessing.config import (
-    LEGACY,
+    MATLAB,
     PROFILES,
-    V2,
-    V2_PREP,
+    V1,
+    V1_PREP,
     PreprocessingConfig,
 )
 from tesis_eeg_parkinson.preprocessing.pipeline import preprocess_recording, run_dataset
 
 __all__ = [
-    "LEGACY",
+    "MATLAB",
     "PROFILES",
-    "V2",
-    "V2_PREP",
+    "V1",
+    "V1_PREP",
     "PreprocessingConfig",
     "preprocess_recording",
     "run_dataset",

@@ -65,7 +65,7 @@ def detect_bad_channels(raw: mne.io.BaseRaw, cfg: PreprocessingConfig) -> BadCha
     Parameters
     ----------
     raw : mne.io.BaseRaw
-        Registro sin referencia promedio y, en ``v2``, ya sin ruido de línea
+        Registro sin referencia promedio y, en ``v1``, ya sin ruido de línea
         (PREP quita la línea antes de referenciar). No se modifica.
     cfg : PreprocessingConfig
         Perfil; aporta semilla e iteraciones.
@@ -102,10 +102,10 @@ def detect_bad_channels(raw: mne.io.BaseRaw, cfg: PreprocessingConfig) -> BadCha
 def channels_to_interpolate(report: BadChannelReport, cfg: PreprocessingConfig) -> list[str]:
     """Canales que se interpolan según el perfil.
 
-    En ``v2`` solo los inutilizables. En ds002778, PREP marca sobre todo los
+    En ``v1`` solo los inutilizables. En ds002778, PREP marca sobre todo los
     canales laterales y frontales (T8, FC6, F8, FC5, T7, F7, Fp1, Fp2) por
     correlación y espectro: artefacto muscular y ocular que corresponde a la ICA,
-    no fallas de electrodo. ``v2-prep`` interpola todo, como sensibilidad.
+    no fallas de electrodo. ``v1-prep`` interpola todo, como sensibilidad.
     """
     return list(report.prep_bads) if cfg.interpolate == "prep" else list(report.unusable)
 

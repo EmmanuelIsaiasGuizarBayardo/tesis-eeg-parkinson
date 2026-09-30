@@ -1,8 +1,11 @@
-"""Configuración del preprocesamiento: dos perfiles completos y explícitos.
+"""Configuración del preprocesamiento: perfiles completos y explícitos.
 
-`V2` es el pipeline de la tesis. `LEGACY` reproduce el pipeline de MATLAB/EEGLAB
-del manual original y existe solo para validar la migración: se compara contra
-los resultados del legado y después se cambia un factor a la vez hacia `V2`.
+- `V1` es el preprocesamiento de la tesis.
+- `V1_PREP` es igual pero interpola todo lo que marca PREP; solo para el análisis
+  de sensibilidad.
+- `MATLAB` reproduce el procesamiento previo en EEGLAB. No es un método de la
+  tesis: existe para verificar la concordancia que se reporta en el apéndice.
+
 Cada derivado guarda `as_dict()` en su JSON de QC, así que el perfil exacto que
 lo produjo queda registrado.
 """
@@ -117,10 +120,10 @@ class PreprocessingConfig:
         return asdict(self)
 
 
-V2 = PreprocessingConfig(name="v2")
+V1 = PreprocessingConfig(name="v1")
 
-LEGACY = PreprocessingConfig(
-    name="legacy",
+MATLAB = PreprocessingConfig(
+    name="matlab",
     notch_freqs=(),
     crop_to_rest_onset=False,
     detect_bad_channels=False,
@@ -131,6 +134,6 @@ LEGACY = PreprocessingConfig(
 )
 
 # Variante de sensibilidad: interpola todo lo que marca PREP.
-V2_PREP = replace(V2, name="v2-prep", interpolate="prep")
+V1_PREP = replace(V1, name="v1-prep", interpolate="prep")
 
-PROFILES: dict[str, PreprocessingConfig] = {p.name: p for p in (V2, V2_PREP, LEGACY)}
+PROFILES: dict[str, PreprocessingConfig] = {p.name: p for p in (V1, V1_PREP, MATLAB)}

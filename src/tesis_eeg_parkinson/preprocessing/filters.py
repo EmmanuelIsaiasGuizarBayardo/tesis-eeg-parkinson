@@ -62,7 +62,7 @@ def apply_final_filter(raw: mne.io.BaseRaw, cfg: PreprocessingConfig) -> mne.io.
     el redondeo al pasar a polinomios mueve el polo más lento de 0.99815 a
     0.99877 y el borde inferior queda en -1.77 dB por pasada en lugar de -3.01.
     MNE rechaza esa forma ("poles outside unit circle"), así que el perfil
-    legacy la aplica con scipy y el relleno de MATLAB: 3·(orden+1-1) muestras.
+    ``matlab`` la aplica con scipy y el relleno de ``filtfilt`` de MATLAB: 3·orden muestras.
     """
     sfreq = raw.info["sfreq"]
     if cfg.final_form == "sos":

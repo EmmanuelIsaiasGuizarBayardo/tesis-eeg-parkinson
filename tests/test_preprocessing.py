@@ -22,7 +22,7 @@ from tesis_eeg_parkinson.preprocessing.channels import (
     detect_bad_channels,
     interpolate_bad_channels,
 )
-from tesis_eeg_parkinson.preprocessing.config import LEGACY, SCALP_CHANNELS, V2, V2_PREP
+from tesis_eeg_parkinson.preprocessing.config import MATLAB, SCALP_CHANNELS, V1, V1_PREP
 from tesis_eeg_parkinson.preprocessing.epochs import make_epochs
 from tesis_eeg_parkinson.preprocessing.filters import (
     apply_final_filter,
@@ -31,7 +31,11 @@ from tesis_eeg_parkinson.preprocessing.filters import (
 )
 from tesis_eeg_parkinson.preprocessing.ica import select_artifact_components
 from tesis_eeg_parkinson.preprocessing.io import find_recordings, load_raw, read_rest_onset
-from tesis_eeg_parkinson.preprocessing.pipeline import assert_outside_raw, preprocess_recording
+from tesis_eeg_parkinson.preprocessing.pipeline import (
+    assert_outside_raw,
+    preprocess_recording,
+    run_dataset,
+)
 from tesis_eeg_parkinson.units import microvolts_to_volts, volts_to_microvolts
 
 SFREQ = 512.0
@@ -98,7 +102,7 @@ def test_units_roundtrip() -> None:
 
 def test_final_filter_sos_matches_design() -> None:
     """Una pasada: -3.01 dB en los bordes; en fase cero, el doble."""
-    sos = final_filter_coefficients(V2, SFREQ)
+    sos = final_filter_coefficients(V1, SFREQ)
     _, h = signal.sosfreqz(sos, worN=[0.5, 32.0], fs=SFREQ)
     assert 20 * np.log10(np.abs(h)) == pytest.approx([-3.01, -3.01], abs=0.02)
 
@@ -110,7 +114,7 @@ def test_final_filter_passband_and_stopband() -> None:
     tones = {10.0: None, 50.0: None, 60.0: None}
     data = np.vstack([np.sin(2 * np.pi * f * t) for f in tones]) * 1e-5
     raw = mne.io.RawArray(data.copy(), mne.create_info(3, SFREQ, "eeg"))  # RawArray no copia
-    apply_final_filter(raw, V2)
+    apply_final_filter(raw, V1)
     core = slice(int(10 * SFREQ), int(50 * SFREQ))  # lejos de los bordes
     gain_db = 20 * np.log10(raw.get_data()[:, core].std(axis=1) / data[:, core].std(axis=1))
     assert abs(gain_db[0]) < 0.09  # < 1% de error de amplitud
@@ -118,16 +122,16 @@ def test_final_filter_passband_and_stopband() -> None:
     assert gain_db[2] < -55
 
 
-def test_legacy_filter_reproduces_matlab_filtfilt() -> None:
-    """El perfil legacy aplica [b,a] con el relleno de filtfilt de MATLAB."""
+def test_matlab_profile_reproduces_matlab_filtfilt() -> None:
+    """El perfil matlab aplica [b,a] con el relleno de filtfilt de MATLAB."""
     rng = np.random.default_rng(1)
     data = rng.standard_normal((2, int(30 * SFREQ))) * 1e-5
     raw = mne.io.RawArray(data.copy(), mne.create_info(2, SFREQ, "eeg"))
-    apply_final_filter(raw, LEGACY)
-    b, a = final_filter_coefficients(LEGACY, SFREQ)
+    apply_final_filter(raw, MATLAB)
+    b, a = final_filter_coefficients(MATLAB, SFREQ)
     expected = signal.filtfilt(b, a, data, axis=-1, padtype="odd", padlen=3 * (len(a) - 1))
     np.testing.assert_allclose(raw.get_data(), expected, rtol=1e-10, atol=1e-18)
-    assert raw.info["highpass"] == LEGACY.final_l_freq
+    assert raw.info["highpass"] == MATLAB.final_l_freq
 
 
 def test_select_artifact_components_follows_manual_criterion() -> None:
@@ -150,28 +154,28 @@ def test_notch_removes_line_and_keeps_band() -> None:
     t = np.arange(n) / SFREQ
     data = np.vstack([np.sin(2 * np.pi * f * t) for f in (10.0, 60.0, 120.0)]) * 1e-5
     raw = mne.io.RawArray(data.copy(), mne.create_info(3, SFREQ, "eeg"))
-    apply_notch(raw, V2)
+    apply_notch(raw, V1)
     core = slice(int(10 * SFREQ), int(50 * SFREQ))
     gain_db = 20 * np.log10(raw.get_data()[:, core].std(axis=1) / data[:, core].std(axis=1))
     assert abs(gain_db[0]) < 0.01  # la banda de interés no cambia
     assert gain_db[1] < -30 and gain_db[2] < -30
-    legacy = mne.io.RawArray(data.copy(), mne.create_info(3, SFREQ, "eeg"))
-    apply_notch(legacy, LEGACY)  # sin notch en el perfil legacy
-    np.testing.assert_array_equal(legacy.get_data(), data)
+    matlab = mne.io.RawArray(data.copy(), mne.create_info(3, SFREQ, "eeg"))
+    apply_notch(matlab, MATLAB)  # sin notch en el perfil matlab
+    np.testing.assert_array_equal(matlab.get_data(), data)
 
 
 def test_bad_channel_detection_finds_injected_channels() -> None:
     raw = _synthetic_eeg(40.0, seed=3)
-    assert detect_bad_channels(raw, V2).prep_bads == []
+    assert detect_bad_channels(raw, V1).prep_bads == []
     data = raw.get_data()
     data[4] = 0.0  # FC1 plano
     data[20] = np.random.default_rng(9).standard_normal(data.shape[1]) * 2e-4  # CP6 ruidoso
     raw._data = data
-    report = detect_bad_channels(raw, V2)
+    report = detect_bad_channels(raw, V1)
     assert {"FC1", "CP6"} <= set(report.prep_bads)
     assert report.unusable == ["FC1"]  # solo el plano es falla de registro
-    assert channels_to_interpolate(report, V2) == ["FC1"]
-    assert set(channels_to_interpolate(report, V2_PREP)) >= {"FC1", "CP6"}
+    assert channels_to_interpolate(report, V1) == ["FC1"]
+    assert set(channels_to_interpolate(report, V1_PREP)) >= {"FC1", "CP6"}
     assert report.correlation_bad_fraction["CP6"] > 0.5
     assert report.correlation_bad_fraction["Fp1"] < 0.01
 
@@ -188,7 +192,7 @@ def test_interpolation_and_car_fix_rank() -> None:
 def test_epochs_have_exact_length_and_ptp_rejection() -> None:
     raw = _synthetic_eeg(65.0, seed=5, scale=3e-6)  # pico a pico muy por debajo de 150 µV
     raw._data[:, int(22 * SFREQ)] += microvolts_to_volts(400.0)  # espiga en la época 3
-    epochs, counts = make_epochs(raw, V2)
+    epochs, counts = make_epochs(raw, V1)
     assert counts == {"n_epochs_total": 6, "n_epochs_kept": 5, "n_dropped_ptp": 1}
     assert len(epochs.times) == int(10 * SFREQ)
     starts = epochs.events[:, 0] - raw.first_samp
@@ -199,13 +203,13 @@ def test_epochs_have_exact_length_and_ptp_rejection() -> None:
 def test_rest_onset_crop_and_provenance(bids_dataset: tuple[Path, BIDSPath]) -> None:
     root, bids_path = bids_dataset
     assert read_rest_onset(bids_path) == pytest.approx(7.25)
-    raw, info = load_raw(bids_path, V2)
+    raw, info = load_raw(bids_path, V1)
     assert raw.ch_names == list(SCALP_CHANNELS)  # EXG fuera, orden canónico
     assert info.cropped_at_s == pytest.approx(7.25)
     assert raw.times[-1] == pytest.approx(45.0 - 7.25 - 1 / SFREQ, abs=1e-6)
     assert info.curator_preprocessed
-    _, info_legacy = load_raw(bids_path, LEGACY)
-    assert info_legacy.cropped_at_s == 0.0
+    _, info_matlab = load_raw(bids_path, MATLAB)
+    assert info_matlab.cropped_at_s == 0.0
     assert find_recordings(root, extension=".vhdr")[0].subject == "pd6"
 
 
@@ -213,20 +217,20 @@ def test_preprocess_recording_end_to_end(
     bids_dataset: tuple[Path, BIDSPath], tmp_path: Path
 ) -> None:
     root, bids_path = bids_dataset
-    cfg = replace(V2, ica_max_iter=200)
+    cfg = replace(V1, ica_max_iter=200)
     qc = preprocess_recording(
         bids_path, cfg, out_root=tmp_path / "processed", figures_root=tmp_path / "qc"
     )
     stem = "sub-pd6_ses-on_task-rest"
-    deriv = tmp_path / "processed" / "preproc-v2" / "sub-pd6" / "ses-on" / "eeg"
+    deriv = tmp_path / "processed" / "preproc-v1" / "sub-pd6" / "ses-on" / "eeg"
     epochs = mne.read_epochs(deriv / f"{stem}_desc-clean_epo.fif")
     assert len(epochs.times) == int(10 * SFREQ)
     assert qc["ica"]["n_components"] == len(SCALP_CHANNELS) - 1 - qc["n_interpolated"]
-    assert qc["config"]["name"] == "v2" and "git_sha" in qc["run_context"]
+    assert qc["config"]["name"] == "v1" and "git_sha" in qc["run_context"]
     assert qc["exclude_primary"] and qc["exclude_reason"] == "curator_preprocessed"
     assert set(qc["bad_channels"]["correlation_bad_fraction"]) == set(SCALP_CHANNELS)
     assert (deriv / f"{stem}_desc-qc.json").exists()
-    assert (tmp_path / "qc" / "preproc-v2" / f"{stem}_psd.pdf").exists()
+    assert (tmp_path / "qc" / "preproc-v1" / f"{stem}_psd.pdf").exists()
 
 
 def test_writing_inside_raw_is_forbidden(tmp_path: Path) -> None:
@@ -235,3 +239,11 @@ def test_writing_inside_raw_is_forbidden(tmp_path: Path) -> None:
     with pytest.raises(PermissionError):
         assert_outside_raw(raw_root / "derivatives", raw_root)
     assert_outside_raw(tmp_path / "processed", raw_root)
+
+
+def test_empty_dataset_fails_before_writing(tmp_path: Path) -> None:
+    """Sin registros no se escribe nada: un resumen vacío taparía el anterior."""
+    (tmp_path / "raw").mkdir()
+    with pytest.raises(FileNotFoundError):
+        run_dataset(tmp_path / "raw", V1, out_root=tmp_path / "processed")
+    assert not (tmp_path / "processed").exists()

@@ -2,9 +2,9 @@
 
 Uso::
 
-    uv run tesis-eeg-parkinson preprocess --profile legacy
-    uv run tesis-eeg-parkinson preprocess --profile v2 --subject hc1 pd3
-    uv run tesis-eeg-parkinson compare-legacy
+    uv run tesis-eeg-parkinson preprocess --profile matlab
+    uv run tesis-eeg-parkinson preprocess --profile v1 --subject hc1 pd3
+    uv run tesis-eeg-parkinson compare-matlab
 """
 
 from __future__ import annotations
@@ -28,7 +28,9 @@ from rich.progress import (
 from rich.table import Table
 
 from tesis_eeg_parkinson.preprocessing import PROFILES, run_dataset
-from tesis_eeg_parkinson.validation.legacy_matlab import (
+from tesis_eeg_parkinson.preprocessing.io import find_recordings
+from tesis_eeg_parkinson.preprocessing.pipeline import EXPECTED_RECORDINGS
+from tesis_eeg_parkinson.validation.matlab import (
     compare_dataset,
     ica_association,
     plot_regression,
@@ -42,15 +44,15 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="tesis-eeg-parkinson")
     sub = parser.add_subparsers(dest="command", required=True)
     pre = sub.add_parser("preprocess", help="Preprocesa ds002778 con un perfil")
-    pre.add_argument("--profile", choices=sorted(PROFILES), default="v2")
+    pre.add_argument("--profile", choices=sorted(PROFILES), default="v1")
     pre.add_argument("--bids-root", type=Path, default=RAIZ / "data" / "raw" / "ds002778")
     pre.add_argument("--out", type=Path, default=RAIZ / "data" / "processed")
     pre.add_argument("--figures", type=Path, default=RAIZ / "results" / "qc")
     pre.add_argument("--no-figures", action="store_true", help="No generar figuras de QC")
     pre.add_argument("--subject", nargs="*", default=None, help="Solo estos sujetos (sin 'sub-')")
-    cmp = sub.add_parser("compare-legacy", help="Compara el perfil legacy contra EEGLAB")
-    cmp.add_argument("--ours", type=Path, default=RAIZ / "data" / "processed" / "preproc-legacy")
-    cmp.add_argument("--matlab", type=Path, default=RAIZ / "data" / "processed" / "legacy-matlab")
+    cmp = sub.add_parser("compare-matlab", help="Compara el perfil matlab contra EEGLAB")
+    cmp.add_argument("--ours", type=Path, default=RAIZ / "data" / "processed" / "preproc-matlab")
+    cmp.add_argument("--eeglab", type=Path, default=RAIZ / "data" / "processed" / "eeglab")
     cmp.add_argument("--figures", type=Path, default=RAIZ / "results" / "qc")
     return parser
 
@@ -104,6 +106,15 @@ def _print_summary(summary: pd.DataFrame, profile: str) -> None:
 
 
 def _preprocess(args: argparse.Namespace) -> None:
+    found = len(find_recordings(args.bids_root))
+    if found == 0:
+        console.print(f"[red]No hay registros .bdf en {args.bids_root}.[/red] ¿Falta el dataset?")
+        raise SystemExit(1)
+    if found != EXPECTED_RECORDINGS and not args.subject:
+        console.print(
+            f"[yellow]Aviso: {found} registros; ds002778 v1.0.5 tiene "
+            f"{EXPECTED_RECORDINGS}.[/yellow]"
+        )
     columns = (
         SpinnerColumn("line"),
         TextColumn("{task.description:<34}"),
@@ -129,9 +140,9 @@ def _preprocess(args: argparse.Namespace) -> None:
     _print_summary(summary, args.profile)
 
 
-def _compare_legacy(args: argparse.Namespace) -> None:
+def _compare_matlab(args: argparse.Namespace) -> None:
     with console.status("Comparando contra EEGLAB..."):
-        table = compare_dataset(args.ours, args.matlab)
+        table = compare_dataset(args.ours, args.eeglab)
     out = args.ours / "regression_matlab.tsv"
     table.to_csv(out, sep="\t", index=False)
     fig = plot_regression(table, args.figures / "regression_matlab.pdf")
@@ -155,8 +166,8 @@ def main(argv: list[str] | None = None) -> None:
     _configure_logging()
     if args.command == "preprocess":
         _preprocess(args)
-    elif args.command == "compare-legacy":
-        _compare_legacy(args)
+    elif args.command == "compare-matlab":
+        _compare_matlab(args)
 
 
 if __name__ == "__main__":

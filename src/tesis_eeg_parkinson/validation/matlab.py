@@ -1,4 +1,4 @@
-"""Regresión: épocas del perfil ``legacy`` contra los ``*_clean.set`` de EEGLAB.
+"""Concordancia con el procesamiento previo: perfil ``matlab`` contra los ``.set`` de EEGLAB.
 
 La ICA no es idéntica entre EEGLAB y MNE, así que se espera concordancia, no
 igualdad. Se compara registro por registro, con las mismas épocas (ambos
@@ -81,7 +81,7 @@ def compare_epochs(ours: mne.Epochs, reference: mne.Epochs) -> dict[str, Any]:
     Parameters
     ----------
     ours : mne.Epochs
-        Épocas del perfil ``legacy``.
+        Épocas del perfil ``matlab``.
     reference : mne.Epochs
         Épocas de EEGLAB; se reordenan a los canales de ``ours``.
 
@@ -135,7 +135,7 @@ def compare_dataset(ours_root: Path, matlab_root: Path) -> pd.DataFrame:
     Parameters
     ----------
     ours_root : Path
-        ``data/processed/preproc-legacy``.
+        ``data/processed/preproc-matlab``.
     matlab_root : Path
         Carpeta con ``sub-X_ses-Y_task-rest_eeg_clean.set``.
 
@@ -225,7 +225,8 @@ def plot_regression(table: pd.DataFrame, fname: Path, seed: int = 28) -> Path:
             f"ρ = {rho:.2f}, p = {p:.2g} (exploratorio)."
         )
     caption = (
-        "Perfil legacy (MNE) contra los *_clean.set de EEGLAB. Un punto por registro; línea "
+        "Reproducción en MNE del procesamiento previo (perfil matlab) contra los *_clean.set "
+        "de EEGLAB. Un punto por registro; línea "
         "horizontal: mediana del grupo. Correlación de Pearson por canal sobre las épocas "
         "concatenadas; error RMS relativo a EEGLAB. En c, componentes de ICA conservados por "
         "EEGLAB menos los conservados por MNE (positivo: MNE quitó más), con los marcadores de "

@@ -46,6 +46,9 @@ ProgressCallback = Callable[[int, int, str, str], None]
 # confirma (sin pico de 60 Hz, sin contenido por debajo de ~2 Hz).
 EXCLUSION_REASON = "curator_preprocessed"
 
+# Registros de ds002778 v1.0.5: 16 HC + 15 PD en dos sesiones.
+EXPECTED_RECORDINGS = 46
+
 
 def assert_outside_raw(path: Path, raw_root: Path) -> None:
     """Falla si ``path`` cae dentro de ``raw_root`` (data/raw es inmutable)."""
@@ -205,6 +208,9 @@ def run_dataset(
     recordings = [
         p for p in find_recordings(Path(bids_root)) if not subjects or p.subject in subjects
     ]
+    if not recordings:
+        # Se falla antes de escribir: un resumen vacío sobrescribiría el anterior.
+        raise FileNotFoundError(f"No hay registros .bdf en {bids_root} (filtro: {subjects})")
     total = len(recordings)
     notify = on_progress or (lambda *_args: None)
     rows: list[dict[str, Any]] = []
