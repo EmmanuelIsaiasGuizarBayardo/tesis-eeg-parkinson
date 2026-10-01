@@ -4,7 +4,8 @@ title: "Tesis_EEG_Parkinson"
 abstract: "Detección de enfermedad de Parkinson en EEG: validación por sujetos y transferibilidad a Emotiv EPOC X."
 type: software
 license: MIT
-version: "0.1.0"
+version: "0.2.0"
+date-released: "2026-10-01"
 
 # Autores: quienes aparecen al citar. Cada uno tiene su sección en CREDITS.md
 # con el mismo nombre; tests/test_gobernanza.py verifica la correspondencia.

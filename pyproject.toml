@@ -1,6 +1,6 @@
 [project]
 name = "tesis-eeg-parkinson"
-version = "0.1.0"
+version = "0.2.0"
 description = "Detección de enfermedad de Parkinson en EEG: validación por sujetos y transferibilidad a Emotiv EPOC X."
 readme = "README.md"
 requires-python = ">=3.12"
