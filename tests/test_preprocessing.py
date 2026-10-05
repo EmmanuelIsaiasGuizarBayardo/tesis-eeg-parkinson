@@ -23,7 +23,7 @@ from tesis_eeg_parkinson.preprocessing.channels import (
     interpolate_bad_channels,
 )
 from tesis_eeg_parkinson.preprocessing.config import MATLAB, SCALP_CHANNELS, V1, V1_PREP
-from tesis_eeg_parkinson.preprocessing.epochs import make_epochs
+from tesis_eeg_parkinson.preprocessing.epochs import make_epochs, persistent_bad_channels
 from tesis_eeg_parkinson.preprocessing.filters import (
     apply_final_filter,
     apply_notch,
@@ -225,9 +225,9 @@ def test_preprocess_recording_end_to_end(
     deriv = tmp_path / "processed" / "preproc-v1" / "sub-pd6" / "ses-on" / "eeg"
     epochs = mne.read_epochs(deriv / f"{stem}_desc-clean_epo.fif")
     assert len(epochs.times) == int(10 * SFREQ)
-    assert qc["ica"]["n_components"] == len(SCALP_CHANNELS) - 1 - qc["n_interpolated"]
+    assert qc["ica"]["n_components"] == len(SCALP_CHANNELS) - 1 - len(qc["interpolated"])
     assert qc["config"]["name"] == "v1" and "git_sha" in qc["run_context"]
-    assert qc["exclude_primary"] and qc["exclude_reason"] == "curator_preprocessed"
+    assert qc["exclude_primary"] and "curator_preprocessed" in qc["exclude_reason"]
     assert set(qc["bad_channels"]["correlation_bad_fraction"]) == set(SCALP_CHANNELS)
     assert (deriv / f"{stem}_desc-qc.json").exists()
     assert (tmp_path / "qc" / "preproc-v1" / f"{stem}_psd.pdf").exists()
@@ -247,3 +247,26 @@ def test_empty_dataset_fails_before_writing(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         run_dataset(tmp_path / "raw", V1, out_root=tmp_path / "processed")
     assert not (tmp_path / "processed").exists()
+
+
+def test_persistent_channel_rule_separates_faults_from_intermittent_artifacts() -> None:
+    """Un canal sobre el umbral en la mayoría de las épocas es falla; en pocas, artefacto."""
+    raw = _synthetic_eeg(100.0, seed=11, scale=3e-6)  # 10 épocas limpias
+    spike = microvolts_to_volts(400.0)
+    for k in range(7):  # F3: espiga en 7 de 10 épocas
+        raw._data[3, int((10 * k + 5) * SFREQ)] += spike
+    for k in range(2):  # T8: espiga en 2 de 10 épocas
+        raw._data[23, int((10 * k + 5) * SFREQ)] += spike
+    found = persistent_bad_channels(raw, V1)
+    assert list(found) == ["F3"] and found["F3"] == pytest.approx(0.7)
+    assert persistent_bad_channels(raw, MATLAB) == {}  # sin la regla en el perfil matlab
+
+
+def test_min_epochs_rule_marks_exclusion(
+    bids_dataset: tuple[Path, BIDSPath], tmp_path: Path
+) -> None:
+    _, bids_path = bids_dataset
+    cfg = replace(V1, ica_max_iter=200, min_epochs=50)  # 45 s nunca alcanzan 50 épocas
+    qc = preprocess_recording(bids_path, cfg, out_root=tmp_path / "processed")
+    assert qc["exclude_primary"]
+    assert qc["exclude_reason"] == "curator_preprocessed;min_epochs"

@@ -5,6 +5,7 @@ Uso::
     uv run tesis-eeg-parkinson preprocess --profile matlab
     uv run tesis-eeg-parkinson preprocess --profile v1 --subject hc1 pd3
     uv run tesis-eeg-parkinson compare-matlab
+    uv run tesis-eeg-parkinson features --profile v1
 """
 
 from __future__ import annotations
@@ -27,6 +28,8 @@ from rich.progress import (
 )
 from rich.table import Table
 
+from tesis_eeg_parkinson.features import PROFILES as FEATURE_PROFILES
+from tesis_eeg_parkinson.features import run_features
 from tesis_eeg_parkinson.preprocessing import PROFILES, run_dataset
 from tesis_eeg_parkinson.preprocessing.io import find_recordings
 from tesis_eeg_parkinson.preprocessing.pipeline import EXPECTED_RECORDINGS
@@ -54,6 +57,10 @@ def _parser() -> argparse.ArgumentParser:
     cmp.add_argument("--ours", type=Path, default=RAIZ / "data" / "processed" / "preproc-matlab")
     cmp.add_argument("--eeglab", type=Path, default=RAIZ / "data" / "processed" / "eeglab")
     cmp.add_argument("--figures", type=Path, default=RAIZ / "results" / "qc")
+    feat = sub.add_parser("features", help="Calcula features sobre un preprocesamiento")
+    feat.add_argument("--profile", choices=sorted(FEATURE_PROFILES), default="v1")
+    feat.add_argument("--preproc", choices=sorted(PROFILES), default="v1")
+    feat.add_argument("--processed", type=Path, default=RAIZ / "data" / "processed")
     return parser
 
 
@@ -160,6 +167,36 @@ def _compare_matlab(args: argparse.Namespace) -> None:
             )
 
 
+def _features(args: argparse.Namespace) -> None:
+    cfg = FEATURE_PROFILES[args.profile]
+    columns = (
+        SpinnerColumn("line"),
+        TextColumn("{task.description:<34}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TimeElapsedColumn(),
+        TimeRemainingColumn(),
+    )
+    with Progress(*columns, console=console) as progress:
+        task = progress.add_task("preparando", total=None)
+
+        def on_progress(done: int, total: int, name: str) -> None:
+            progress.update(task, completed=done, total=total, description=f"{name} · features")
+
+        table = run_features(
+            preproc_root=args.processed / f"preproc-{args.preproc}",
+            cfg=cfg,
+            out_root=args.processed,
+            on_progress=on_progress,
+        )
+    n_feat = sum(1 for c in table.columns if "__" in c and not c.startswith("qc_"))
+    nan = table[[c for c in table.columns if "__" in c and not c.startswith("qc_")]].isna()
+    console.print(
+        f"features-{cfg.name}: {len(table)} épocas × {n_feat} features "
+        f"(preproc-{args.preproc}). Valores NaN: {int(nan.to_numpy().sum())}."
+    )
+
+
 def main(argv: list[str] | None = None) -> None:
     """Ejecuta el subcomando indicado."""
     args = _parser().parse_args(argv)
@@ -168,6 +205,8 @@ def main(argv: list[str] | None = None) -> None:
         _preprocess(args)
     elif args.command == "compare-matlab":
         _compare_matlab(args)
+    elif args.command == "features":
+        _features(args)
 
 
 if __name__ == "__main__":

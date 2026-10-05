@@ -62,6 +62,8 @@ flatbuffers==25.12.19
     # via onnxruntime
 fonttools==4.66.0
     # via matplotlib
+fooof==1.1.1
+    # via tesis-eeg-parkinson
 h11==0.16.0
     # via urllib3-future
 identify==2.6.20
@@ -134,6 +136,7 @@ numpy==2.5.3
     #   colorspacious
     #   contourpy
     #   eeglabio
+    #   fooof
     #   matplotlib
     #   mne
     #   mne-bids
@@ -142,6 +145,7 @@ numpy==2.5.3
     #   pandas
     #   pybv
     #   pyprep
+    #   pywavelets
     #   scikit-learn
     #   scipy
     #   tesis-eeg-parkinson
@@ -220,6 +224,8 @@ python-dateutil==2.9.0.post0
     #   pandas
 python-discovery==1.6.1
     # via virtualenv
+pywavelets==1.10.0
+    # via tesis-eeg-parkinson
 pyyaml==6.0.3
     # via
     #   pre-commit
@@ -243,6 +249,7 @@ scikit-learn==1.9.1
 scipy==1.18.1
     # via
     #   eeglabio
+    #   fooof
     #   mne
     #   mne-bids
     #   mne-icalabel

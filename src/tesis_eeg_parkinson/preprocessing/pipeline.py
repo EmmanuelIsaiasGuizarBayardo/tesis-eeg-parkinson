@@ -25,7 +25,7 @@ from tesis_eeg_parkinson.preprocessing.config import (
     SCALP_CHANNELS,
     PreprocessingConfig,
 )
-from tesis_eeg_parkinson.preprocessing.epochs import make_epochs
+from tesis_eeg_parkinson.preprocessing.epochs import make_epochs, persistent_bad_channels
 from tesis_eeg_parkinson.preprocessing.filters import apply_final_filter, apply_notch, ica_copy
 from tesis_eeg_parkinson.preprocessing.ica import (
     fit_ica,
@@ -45,6 +45,7 @@ ProgressCallback = Callable[[int, int, str, str], None]
 # los curadores declaran que estas sesiones no son dato crudo, y su espectro lo
 # confirma (sin pico de 60 Hz, sin contenido por debajo de ~2 Hz).
 EXCLUSION_REASON = "curator_preprocessed"
+MIN_EPOCHS_REASON = "min_epochs"
 
 # Registros de ds002778 v1.0.5: 16 HC + 15 PD en dos sesiones.
 EXPECTED_RECORDINGS = 46
@@ -126,7 +127,16 @@ def preprocess_recording(
 
     stage("filtro y épocas")
     apply_final_filter(raw, cfg)
+    persistent = persistent_bad_channels(raw, cfg)
+    if persistent:
+        # Falla persistente tras la ICA: se interpola el canal y se vuelve a
+        # segmentar, en lugar de descartar las épocas de los demás canales.
+        interpolate_bad_channels(raw, sorted(persistent))
+        raw.set_eeg_reference("average", projection=False, verbose="error")
     epochs, counts = make_epochs(raw, cfg)
+    reasons = [EXCLUSION_REASON] if rec.curator_preprocessed else []
+    if counts["n_epochs_kept"] < cfg.min_epochs:
+        reasons.append(MIN_EPOCHS_REASON)
 
     stage("guardar")
     deriv = derivative_root(out_root, cfg) / f"sub-{rec.subject}" / f"ses-{rec.session}" / "eeg"
@@ -137,11 +147,12 @@ def preprocess_recording(
     qc: dict[str, Any] = {
         "recording": asdict(rec),
         "line_freq_sidecar_mismatch": rec.line_freq_sidecar != GRID_LINE_FREQ,
-        "exclude_primary": rec.curator_preprocessed,
-        "exclude_reason": EXCLUSION_REASON if rec.curator_preprocessed else "",
+        "exclude_primary": bool(reasons),
+        "exclude_reason": ";".join(reasons),
         "bad_channels": asdict(report),
         "interpolated": interpolated,
-        "n_interpolated": len(interpolated),
+        "persistent": persistent,
+        "n_interpolated": len(interpolated) + len(persistent),
         "n_prep_flagged": len(report.prep_bads),
         "needs_review": len(interpolated) > cfg.max_bad_channels,
         "ica": {
@@ -176,7 +187,7 @@ def _summary_row(qc: dict[str, Any]) -> dict[str, Any]:
         "curator_preprocessed": rec["curator_preprocessed"],
         "exclude_primary": qc["exclude_primary"],
         "line_freq_sidecar": rec["line_freq_sidecar"],
-        "interpolated": ",".join(qc["interpolated"]),
+        "interpolated": ",".join(qc["interpolated"] + sorted(qc["persistent"])),
         "n_interpolated": qc["n_interpolated"],
         "prep_flagged": ",".join(qc["bad_channels"]["prep_bads"]),
         "n_prep_flagged": qc["n_prep_flagged"],

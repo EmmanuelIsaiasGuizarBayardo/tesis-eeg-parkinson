@@ -89,6 +89,13 @@ class PreprocessingConfig:
         Duración de las épocas, sin solapamiento.
     reject_ptp_uv : float or None
         Umbral pico a pico fijo, en µV, fijado a priori. None = sin rechazo.
+    persistent_fraction : float or None
+        Un canal que supera el umbral pico a pico en más de esta fracción de las
+        épocas es una falla persistente: se interpola y se vuelve a segmentar.
+        None = sin la regla.
+    min_epochs : int
+        Épocas limpias mínimas para el análisis principal (6 = 60 s); con menos,
+        el registro pasa al de sensibilidad. 0 = sin mínimo.
     seed : int
         Semilla de la ICA y de toda operación aleatoria.
     """
@@ -113,6 +120,8 @@ class PreprocessingConfig:
     final_form: Literal["sos", "ba"] = "sos"
     epoch_duration_s: float = 10.0
     reject_ptp_uv: float | None = 150.0
+    persistent_fraction: float | None = 0.5
+    min_epochs: int = 6
     seed: int = 28
 
     def as_dict(self) -> dict[str, Any]:
@@ -131,6 +140,8 @@ MATLAB = PreprocessingConfig(
     iclabel_on="master",
     final_form="ba",
     reject_ptp_uv=None,
+    persistent_fraction=None,
+    min_epochs=0,
 )
 
 # Variante de sensibilidad: interpola todo lo que marca PREP.

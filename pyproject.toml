@@ -22,6 +22,8 @@ dependencies = [
     "openneuro-py>=2026.9.1",
     "figuras-cientificas",
     "rich>=15.0.0",
+    "pywavelets>=1.10.0",
+    "fooof>=1.1.1",
 ]
 
 [project.scripts]

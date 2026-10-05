@@ -51,6 +51,8 @@ Revisado en los metadatos de la versión 1.0.5 (Rockhill et al., 2021).
 | Limpieza | Pesos aplicados al registro sin filtrar | Conserva la banda de 0.5 a 1 Hz |
 | Filtro final | Butterworth N=5, 0.5 a 32 Hz, SOS, fase cero | Estabilidad numérica |
 | Épocas | 10 s sin solapamiento; fuera las de pico a pico > 150 µV | Criterio explícito y fijo |
+| Falla persistente | Canal sobre el umbral en más de la mitad de las épocas: se interpola | Ver abajo |
+| Mínimo | 6 épocas limpias (60 s) para el análisis principal | Ver abajo |
 
 ## Decisiones y su justificación
 
@@ -107,6 +109,24 @@ conserva el diseño.
 filtrada, decidido antes de ver cualquier resultado de clasificación. Las épocas
 descartadas se reportan por registro y por grupo.
 
+**Falla persistente por canal.** El rechazo pico a pico se evalúa sobre el máximo
+entre canales: un solo canal con falla tira épocas cuyos otros 31 canales están
+limpios. En la primera corrida de V1, sub-hc1 perdió 11 de 18 épocas y F3 causó las
+11; en los demás registros, los rechazos se repartían en pocas épocas y varios canales
+(p. ej., F8 en 3 de 18 épocas de pd22 on). Regla, fijada antes de cualquier feature o
+clasificación: un canal que supera el umbral en más de la mitad de las épocas,
+después de la ICA, es una falla persistente; se interpola, se vuelve a referenciar y
+se segmenta de nuevo. El criterio es la fracción de épocas afectadas y no la fracción
+de rechazos que causa: con el segundo, F8 o F7 se interpolarían por 3 épocas con
+artefacto intermitente, que es justo lo que V1 deja a la ICA. El QC lo registra en
+`persistent`, con la fracción de cada canal.
+
+**Mínimo de épocas.** Un registro con menos de 6 épocas limpias (60 s) sale del
+análisis principal y queda en el de sensibilidad (`exclude_reason` = `min_epochs`).
+El umbral es una convención, no un valor derivado de evidencia, y funciona como
+protección. Como la evaluación será por sujeto, que los registros tengan distinto
+número de épocas no sesga por sí mismo: solo cambia el ruido de cada estimación.
+
 **Intensidad de limpieza por grupo.** Los componentes excluidos, los canales
 interpolados y las épocas descartadas se reportan por grupo tras la corrida
 definitiva. Una diferencia entre grupos es plausible (temblor y actividad muscular
@@ -160,6 +180,8 @@ sintéticas:
 - tras interpolar y referenciar, la suma entre canales es cero y el rango es el esperado;
 - cada época mide 5,120 muestras sobre una rejilla fija, y el rechazo quita la época
   con una espiga de 400 µV;
+- la regla de falla persistente marca un canal con espigas en 7 de 10 épocas y no uno
+  con espigas en 2 de 10; un registro con menos épocas que el mínimo se excluye;
 - el recorte empieza en el evento "1", y se marca la procedencia de los curadores;
 - el registro completo produce épocas, JSON y figura de QC;
 - nada puede escribirse dentro de `data/raw/`, y una corrida sin registros falla
