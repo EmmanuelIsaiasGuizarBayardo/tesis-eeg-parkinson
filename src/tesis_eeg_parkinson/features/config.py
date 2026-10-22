@@ -1,10 +1,10 @@
 """Configuración de features: perfiles completos y explícitos.
 
 - `V1`: features de la tesis. Todas invariantes a la escala de la señal (ganancia,
-  impedancia, unidades), porque el objetivo incluye transferir a otro equipo, y al
-  menos dos leen el orden temporal. Se eligen por sus propiedades, no por su
-  desempeño: escogerlas por su separación entre grupos con estos mismos datos
-  sería fuga de selección.
+  impedancia, unidades), porque el objetivo incluye transferir a otro equipo. Tres
+  leen el orden temporal, y una de ellas, su dirección (forma de onda). Se eligen
+  por sus propiedades, no por su desempeño: escogerlas por su separación entre
+  grupos con estos mismos datos sería fuga de selección.
 - `ALJALAL`: la configuración publicada por Aljalal et al. (2022), para la
   comparación con el método original. No es un método de la tesis.
 """
@@ -38,6 +38,8 @@ class FeatureConfig:
         Orden de la entropía de permutación (m).
     permen_delays : tuple of int
         Retrasos (τ): cada uno mira una escala temporal distinta.
+    t3_delays : tuple of int
+        Retrasos de la asimetría temporal de los incrementos (forma de onda).
     sampen_order : int
         Orden de la entropía muestral (m).
     sampen_r : float
@@ -59,6 +61,7 @@ class FeatureConfig:
     include_broadband: bool = True
     permen_order: int = 4
     permen_delays: tuple[int, ...] = (1, 2, 4)
+    t3_delays: tuple[int, ...] = (1, 2, 4)
     sampen_order: int = 2
     sampen_r: float = 0.2
     psd_window_s: float = 2.0

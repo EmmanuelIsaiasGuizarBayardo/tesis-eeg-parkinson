@@ -35,10 +35,11 @@ Por canal, sobre épocas decimadas a 128 Hz:
 | `wentropy` | cA4, cD4, cD3, cD2 | Cómo se reparte la energía de la banda en el tiempo | Invariante | No |
 | `permen_tau1/2/4` | Banda completa | Estructura ordinal a tres escalas temporales | Invariante | Sí |
 | `sampen` | Banda completa | Regularidad de patrones de amplitud | Invariante | Sí |
+| `t3_tau1/2/4` | Banda completa | Asimetría temporal de los incrementos (forma de onda) | Invariante | Sí, y su dirección |
 | `aperiodic_exponent` | Banda completa | Pendiente 1/f del espectro | Invariante | No |
 | `alpha_cog` | Banda completa | Frecuencia del ritmo alfa | Invariante | No |
 
-Son 14 features por canal (448 con 32 canales; 196 con los 14 del EPOC X). La
+Son 17 features por canal (544 con 32 canales; 238 con los 14 del EPOC X). La
 invariancia a la escala está probada para cada una con ganancias de 0.001 a 250.
 
 **Frecuencia de trabajo y bandas.** A 128 Hz, el árbol db4 de 4 niveles da cA4
@@ -68,6 +69,15 @@ respuesta del amplificador no la cambian. Los retrasos 1, 2 y 4 miran ventanas d
 la medida que en análisis previos cambió +258% al barajar las muestras mientras las
 ocho originales no cambiaban. Con r relativo a la DE es invariante a la escala; a
 128 Hz, r ronda 2 µV, muy por encima del paso de cuantización del EPOC X.
+
+**`t3`.** Asimetría de los incrementos, E[d³]/E[d²]^1.5 con d = x(t + τ) − x(t)
+(Schreiber & Schmitz, 2000), en los retrasos 1, 2 y 4. PermEn y SampEn no cambian al
+invertir la señal en el tiempo; T3 cambia de signo. Es la única feature de V1 que lee
+la forma de onda (subidas bruscas y bajadas lentas dan T3 positivo), adimensional y
+casi gratuita. Jackson et al. (2019) reportaron diferencias de forma de onda en PD en
+este mismo dataset. La asimetría vive en los armónicos: con el corte de 32 Hz, T3
+conserva la forma de alfa (armónicos en 20 y 30 Hz), no la de beta; para eso existe
+el preprocesamiento `v1-43`.
 
 **`aperiodic_exponent` y `alpha_cog`.** El espectro de Welch (ventanas de 2 s) se
 parametriza con FOOOF entre 2 y 30 Hz (Donoghue et al., 2020). El exponente separa la
@@ -111,7 +121,7 @@ Son 1,728 features por época con 32 canales.
 ## Salidas
 
 ```
-data/processed/features-<perfil>/
+data/processed/features-<perfil>/preproc-<perfil>/
 ├── features.tsv     una fila por época; metadatos + <métrica>__<señal>__<canal>
 └── features.json    configuración, bandas nominales, preprocesamiento y RunContext
 ```
@@ -128,6 +138,8 @@ preprocesamiento. Las columnas `qc_` no entran a la clasificación.
 - barajar las muestras no cambia `wentropy` ni las métricas originales, y sí sube
   PermEn y SampEn;
 - PermEn vale 0 en una rampa y más de 0.98 en ruido blanco;
+- invertir la señal no cambia PermEn y sí invierte el signo de T3, que vale ~0 en
+  ruido gaussiano y no depende de la escala;
 - SampEn coincide con un cálculo por fuerza bruta;
 - el exponente y `alpha_cog` recuperan 1.5 y 10 Hz en ruido 1/f con un pico de alfa;
 - la ShEn del artículo cumple E·(log E − H);
@@ -139,6 +151,7 @@ preprocesamiento. Las columnas `qc_` no entran a la clasificación.
 
 ```powershell
 uv run tesis-eeg-parkinson features --profile v1
+uv run tesis-eeg-parkinson features --profile v1 --preproc v1-43
 uv run tesis-eeg-parkinson features --profile aljalal
 ```
 
@@ -166,6 +179,10 @@ Lara, A. H., Wallis, J. D., Knight, R. T., Shestyuk, A., & Voytek, B. (2020).
 Parameterizing neural power spectra into periodic and aperiodic components. *Nature
 Neuroscience, 23*(12), 1655–1665. https://doi.org/10.1038/s41593-020-00744-x
 
+Jackson, N., Cole, S. R., Voytek, B., & Swann, N. C. (2019). Characteristics of
+waveform shape in Parkinson's disease detected with scalp electroencephalography.
+*eNeuro, 6*(3), ENEURO.0151-19.2019. https://doi.org/10.1523/ENEURO.0151-19.2019
+
 Klimesch, W. (1999). EEG alpha and theta oscillations reflect cognitive and memory
 performance: A review and analysis. *Brain Research Reviews, 29*(2–3), 169–195.
 https://doi.org/10.1016/S0165-0173(98)00056-3
@@ -174,6 +191,9 @@ Richman, J. S., & Moorman, J. R. (2000). Physiological time-series analysis usin
 approximate entropy and sample entropy. *American Journal of Physiology-Heart and
 Circulatory Physiology, 278*(6), H2039–H2049.
 https://doi.org/10.1152/ajpheart.2000.278.6.H2039
+
+Schreiber, T., & Schmitz, A. (2000). Surrogate time series. *Physica D: Nonlinear
+Phenomena, 142*(3–4), 346–382. https://doi.org/10.1016/S0167-2789(00)00043-9
 
 Stoffers, D., Bosboom, J. L. W., Deijen, J. B., Wolters, E. C., Berendse, H. W., &
 Stam, C. J. (2007). Slowing of oscillatory brain activity is a stable characteristic

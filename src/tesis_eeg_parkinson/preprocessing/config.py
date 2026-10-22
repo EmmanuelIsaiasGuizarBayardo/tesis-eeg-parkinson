@@ -3,6 +3,8 @@
 - `V1` es el preprocesamiento de la tesis.
 - `V1_PREP` es igual pero interpola todo lo que marca PREP; solo para el análisis
   de sensibilidad.
+- `V1_43` es igual pero con el pasa-bajas en 43 Hz (banda del EPOC X); solo para el
+  análisis de sensibilidad de la forma de onda de beta.
 - `MATLAB` reproduce el procesamiento previo en EEGLAB. No es un método de la
   tesis: existe para verificar la concordancia que se reporta en el apéndice.
 
@@ -147,4 +149,8 @@ MATLAB = PreprocessingConfig(
 # Variante de sensibilidad: interpola todo lo que marca PREP.
 V1_PREP = replace(V1, name="v1-prep", interpolate="prep")
 
-PROFILES: dict[str, PreprocessingConfig] = {p.name: p for p in (V1, V1_PREP, MATLAB)}
+# Variante de sensibilidad: banda del EPOC X (hasta ~43 Hz). Conserva el segundo
+# armónico de beta, necesario para su forma de onda, a costa de más actividad muscular.
+V1_43 = replace(V1, name="v1-43", final_h_freq=43.0)
+
+PROFILES: dict[str, PreprocessingConfig] = {p.name: p for p in (V1, V1_PREP, V1_43, MATLAB)}

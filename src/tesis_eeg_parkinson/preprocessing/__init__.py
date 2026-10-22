@@ -4,6 +4,7 @@ from tesis_eeg_parkinson.preprocessing.config import (
     MATLAB,
     PROFILES,
     V1,
+    V1_43,
     V1_PREP,
     PreprocessingConfig,
 )
@@ -13,6 +14,7 @@ __all__ = [
     "MATLAB",
     "PROFILES",
     "V1",
+    "V1_43",
     "V1_PREP",
     "PreprocessingConfig",
     "preprocess_recording",

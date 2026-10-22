@@ -24,6 +24,7 @@ from tesis_eeg_parkinson.features.metrics import (
     permutation_entropy,
     relative_power,
     sample_entropy,
+    time_asymmetry,
     wavelet_entropy,
 )
 from tesis_eeg_parkinson.reproducibility import get_run_context
@@ -84,6 +85,8 @@ def epoch_features(
                 data_uv, cfg.permen_order, tau
             )
         values[("sampen", "broadband")] = sample_entropy(data_uv, cfg.sampen_order, cfg.sampen_r)
+        for tau in cfg.t3_delays:
+            values[(f"t3_tau{tau}", "broadband")] = time_asymmetry(data_uv, tau)
         spectral = aperiodic_and_alpha(
             data_uv, cfg.sfreq, cfg.psd_window_s, cfg.aperiodic_range, cfg.alpha_range
         )
@@ -127,7 +130,8 @@ def run_features(
 ) -> pd.DataFrame:
     """Calcula features para todos los registros de un perfil de preprocesamiento.
 
-    Escribe ``features-<perfil>/features.tsv`` y ``features.json`` (configuración,
+    Escribe ``features-<perfil>/preproc-<perfil>/features.tsv`` y ``features.json``
+    (una carpeta por combinación, para que no se sobrescriban; configuración,
     bandas nominales, perfil de preprocesamiento y ``RunContext``).
 
     Raises
@@ -146,7 +150,8 @@ def run_features(
         tables.append(recording_features(path, cfg, meta))
         notify(done + 1, len(paths), f"sub-{meta['subject']} ses-{meta['session']}")
     table = pd.concat(tables, ignore_index=True)
-    out = Path(out_root) / f"features-{cfg.name}"
+    preproc_name = Path(preproc_root).name
+    out = Path(out_root) / f"features-{cfg.name}" / preproc_name
     out.mkdir(parents=True, exist_ok=True)
     table.to_csv(out / "features.tsv", sep="\t", index=False)
     feature_cols = [c for c in table.columns if c not in META_COLUMNS and not c.startswith("qc_")]

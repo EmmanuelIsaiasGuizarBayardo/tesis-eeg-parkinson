@@ -5,6 +5,7 @@ V1 (invariantes a la escala de la señal):
 - entropía wavelet normalizada (cómo se reparte la energía de la banda en el tiempo),
 - entropía de permutación (orden temporal; Bandt & Pompe, 2002),
 - entropía muestral (regularidad temporal; Richman & Moorman, 2000),
+- asimetría temporal de los incrementos (forma de onda; Schreiber & Schmitz, 2000),
 - exponente aperiódico y centro de gravedad de alfa (Donoghue et al., 2020).
 
 Aljalal et al. (2022): las ocho métricas tal como están escritas en el artículo,
@@ -22,8 +23,9 @@ from numpy.typing import NDArray
 from scipy import signal
 from scipy.spatial import cKDTree
 
-with warnings.catch_warnings():  # fooof 1.1 avisa de su sucesor, specparam (aún preliminar)
-    warnings.simplefilter("ignore")
+# fooof 1.1 avisa de su sucesor (specparam, aún preliminar) y antes fuerza
+# simplefilter("always"), así que ignorar no basta: el aviso se registra y se descarta.
+with warnings.catch_warnings(record=True):
     from fooof import FOOOFGroup
     from fooof.sim.gen import gen_aperiodic
 
@@ -89,6 +91,24 @@ def sample_entropy(x: Array, order: int, r_factor: float) -> Array:
     return np.array(
         [_sampen_1d(row, order, r_factor * row.std()) for row in np.asarray(x, dtype=float)]
     )
+
+
+def time_asymmetry(x: Array, delay: int) -> Array:
+    """Asimetría de los incrementos: E[d³] / E[d²]^1.5, con d = x(t + τ) − x(t).
+
+    Es la única métrica de V1 que distingue la dirección del tiempo: PermEn y SampEn
+    no cambian al invertir la señal, y esta cambia de signo. Positiva cuando las
+    subidas son bruscas y las bajadas lentas. Es adimensional (invariante a la
+    escala) y vale ~0 en procesos reversibles, como el ruido gaussiano.
+
+    Notes
+    -----
+    La asimetría vive en los armónicos: con el pasa-bajas de 32 Hz se conserva la
+    forma de alfa (armónicos en 20 y 30 Hz), no la de beta (su segundo armónico
+    queda por encima del corte).
+    """
+    d = x[:, delay:] - x[:, :-delay]
+    return np.mean(d**3, axis=-1) / np.mean(d**2, axis=-1) ** 1.5
 
 
 def aperiodic_and_alpha(

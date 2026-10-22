@@ -24,6 +24,7 @@ from tesis_eeg_parkinson.features.metrics import (
     permutation_entropy,
     relative_power,
     sample_entropy,
+    time_asymmetry,
     wavelet_entropy,
 )
 
@@ -136,7 +137,7 @@ def test_feature_counts_per_channel() -> None:
     names = ["Fp1", "Cz"]
     v1 = epoch_features(_pink(2, 1.5, seed=8), names, V1)
     per_channel = {k.rsplit("__", 1)[0] for k in v1 if not k.startswith("qc_")}
-    assert len(per_channel) == 14  # 4 relpow + 4 wentropy + 3 permen + sampen + exponente + alfa
+    assert len(per_channel) == 17  # 4 relpow + 4 wentropy + 3 permen + 3 t3 + sampen + 2 FOOOF
     x512 = _pink(2, 1.5, seed=9, n=5120, sfreq=512.0)
     alj = epoch_features(x512, names, ALJALAL)
     assert len(alj) == 9 * 6 * 2  # 8 métricas + tshen_hist, 5 coeficientes + original
@@ -154,14 +155,30 @@ def test_run_features_writes_table_with_metadata(tmp_path: Path) -> None:
     qc = {"recording": {"subject": "hc1", "session": "hc"}, "exclude_primary": False,
           "exclude_reason": ""}  # fmt: skip
     (root / "sub-hc1_ses-hc_task-rest_desc-qc.json").write_text(json.dumps(qc))
-    cfg = replace(V1, permen_delays=(1,))
+    cfg = replace(V1, permen_delays=(1,), t3_delays=(1,))
     table = run_features(tmp_path / "preproc-v1", cfg, tmp_path)
     assert len(table) == 3 and table["group"].eq("hc").all()
-    assert (tmp_path / "features-v1" / "features.tsv").exists()
-    sidecar = json.loads((tmp_path / "features-v1" / "features.json").read_text(encoding="utf-8"))
-    assert sidecar["n_features"] == 4 * (14 - 2)  # dos retrasos menos de PermEn
-    assert list(pd.read_csv(tmp_path / "features-v1" / "features.tsv", sep="\t").columns)[:4] == [
-        "subject", "session", "group", "exclude_primary",
-    ]  # fmt: skip
+    assert (tmp_path / "features-v1" / "preproc-v1" / "features.tsv").exists()
+    sidecar = json.loads(
+        (tmp_path / "features-v1" / "preproc-v1" / "features.json").read_text(encoding="utf-8")
+    )
+    assert sidecar["n_features"] == 4 * (17 - 4)  # dos retrasos menos de PermEn y de T3
+    written = pd.read_csv(tmp_path / "features-v1" / "preproc-v1" / "features.tsv", sep="\t")
+    assert list(written.columns)[:4] == ["subject", "session", "group", "exclude_primary"]
     with pytest.raises(FileNotFoundError):
         run_features(tmp_path / "vacio", cfg, tmp_path)
+
+
+def test_time_asymmetry_reads_the_direction_of_time() -> None:
+    """Invertir la señal no cambia PermEn ni SampEn; T3 cambia de signo."""
+    t = np.arange(N) / SFREQ
+    rng = np.random.default_rng(11)
+    wave = sum(np.sin(2 * np.pi * 10 * k * t) / k for k in (1, 2, 3))  # subida brusca
+    x = (wave + 0.3 * rng.standard_normal(N))[None, :]
+    rev = x[:, ::-1].copy()
+    assert time_asymmetry(x, 1)[0] > 0.3
+    np.testing.assert_allclose(time_asymmetry(rev, 1), -time_asymmetry(x, 1))
+    np.testing.assert_allclose(permutation_entropy(rev, 4, 1), permutation_entropy(x, 4, 1))
+    np.testing.assert_allclose(time_asymmetry(7.3 * x, 2), time_asymmetry(x, 2))  # escala
+    noise = rng.standard_normal((3, N))  # proceso reversible
+    assert np.all(np.abs(time_asymmetry(noise, 1)) < 0.1)

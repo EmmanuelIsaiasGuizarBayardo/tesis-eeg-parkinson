@@ -192,8 +192,8 @@ def _features(args: argparse.Namespace) -> None:
     n_feat = sum(1 for c in table.columns if "__" in c and not c.startswith("qc_"))
     nan = table[[c for c in table.columns if "__" in c and not c.startswith("qc_")]].isna()
     console.print(
-        f"features-{cfg.name}: {len(table)} épocas × {n_feat} features "
-        f"(preproc-{args.preproc}). Valores NaN: {int(nan.to_numpy().sum())}."
+        f"features-{cfg.name}/preproc-{args.preproc}: {len(table)} épocas × {n_feat} features. "
+        f"Valores NaN: {int(nan.to_numpy().sum())}."
     )
 
 

@@ -6,6 +6,9 @@ El código vive en `src/tesis_eeg_parkinson/preprocessing/` y cada parámetro, e
 - **`v1`**: el preprocesamiento de la tesis.
 - **`v1-prep`**: igual a `v1`, pero interpola todo lo que marca PREP. Solo para el
   análisis de sensibilidad.
+- **`v1-43`**: igual a `v1`, pero con el pasa-bajas en 43 Hz, la banda del EPOC X.
+  Conserva el segundo armónico de beta, que su forma de onda necesita, a costa de más
+  actividad muscular. Solo para el análisis de sensibilidad; ver `docs/transferibilidad.md`.
 - **`matlab`**: reproduce el procesamiento previo en EEGLAB. No es un método de la
   tesis; existe para la verificación que resume el apéndice de este documento.
 
@@ -192,6 +195,7 @@ sintéticas:
 ```powershell
 uv run tesis-eeg-parkinson preprocess --profile v1
 uv run tesis-eeg-parkinson preprocess --profile v1-prep
+uv run tesis-eeg-parkinson preprocess --profile v1-43
 uv run tesis-eeg-parkinson preprocess --profile v1 --subject pd6 pd16
 ```
 
