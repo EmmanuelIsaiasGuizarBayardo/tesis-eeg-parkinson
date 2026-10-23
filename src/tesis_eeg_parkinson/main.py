@@ -6,6 +6,7 @@ Uso::
     uv run tesis-eeg-parkinson preprocess --profile v1 --subject hc1 pd3
     uv run tesis-eeg-parkinson compare-matlab
     uv run tesis-eeg-parkinson features --profile v1
+    uv run tesis-eeg-parkinson classify --features v1 --preproc v1
 """
 
 from __future__ import annotations
@@ -28,6 +29,9 @@ from rich.progress import (
 )
 from rich.table import Table
 
+from tesis_eeg_parkinson.classification.data import CONTRASTS
+from tesis_eeg_parkinson.classification.models import MODELS
+from tesis_eeg_parkinson.classification.run import run_analysis
 from tesis_eeg_parkinson.features import PROFILES as FEATURE_PROFILES
 from tesis_eeg_parkinson.features import run_features
 from tesis_eeg_parkinson.preprocessing import PROFILES, run_dataset
@@ -61,6 +65,21 @@ def _parser() -> argparse.ArgumentParser:
     feat.add_argument("--profile", choices=sorted(FEATURE_PROFILES), default="v1")
     feat.add_argument("--preproc", choices=sorted(PROFILES), default="v1")
     feat.add_argument("--processed", type=Path, default=RAIZ / "data" / "processed")
+    cls = sub.add_parser("classify", help="Clasificación prerregistrada (docs/clasificacion.md)")
+    cls.add_argument("--features", choices=sorted(FEATURE_PROFILES), default="v1")
+    cls.add_argument("--preproc", choices=sorted(PROFILES), default="v1")
+    cls.add_argument("--model", choices=MODELS, default="lr")
+    cls.add_argument("--contrast", choices=[*CONTRASTS, "all"], default="all")
+    cls.add_argument("--repeats", type=int, default=20)
+    cls.add_argument("--n-perm", type=int, default=None, help="Por defecto 1000 en lr, 0 en otros")
+    cls.add_argument("--null-repeats", type=int, default=2)
+    cls.add_argument("--jobs", type=int, default=-1)
+    cls.add_argument("--include-excluded", action="store_true")
+    cls.add_argument("--intersect-preproc", choices=sorted(PROFILES), default=None)
+    cls.add_argument("--channels", choices=["emotiv"], default=None)
+    cls.add_argument("--no-leakage-control", action="store_true")
+    cls.add_argument("--processed", type=Path, default=RAIZ / "data" / "processed")
+    cls.add_argument("--out", type=Path, default=RAIZ / "results" / "classification")
     return parser
 
 
@@ -197,6 +216,69 @@ def _features(args: argparse.Namespace) -> None:
     )
 
 
+def _classify(args: argparse.Namespace) -> None:
+    from tesis_eeg_parkinson.preprocessing.config import EMOTIV_CHANNELS
+
+    features = (
+        args.processed / f"features-{args.features}" / f"preproc-{args.preproc}" / "features.tsv"
+    )
+    n_perm = args.n_perm if args.n_perm is not None else (1000 if args.model == "lr" else 0)
+    name = f"{args.features}_{args.preproc}_{args.model}"
+    intersect = None
+    if args.intersect_preproc:
+        intersect = features.parent.parent / f"preproc-{args.intersect_preproc}" / "features.tsv"
+        name += f"_inter-{args.intersect_preproc}"
+    if args.include_excluded:
+        name += "_incl-excluded"
+    if args.channels:
+        name += f"_ch-{args.channels}"
+    contrasts = tuple(CONTRASTS) if args.contrast == "all" else (args.contrast,)
+    columns = (SpinnerColumn("line"), TextColumn("{task.description:<34}"), BarColumn(),
+               MofNCompleteColumn(), TimeElapsedColumn(), TimeRemainingColumn())  # fmt: skip
+    with Progress(*columns, console=console) as progress:
+        task = progress.add_task("preparando", total=None)
+
+        def on_event(contrast: str, done: int, total: int) -> None:
+            stage = "validación" if done == 0 else "permutaciones"
+            progress.update(
+                task, completed=done, total=max(total, 1), description=f"{contrast} · {stage}"
+            )
+
+        summary = run_analysis(
+            features, args.out / name, args.model, contrasts, args.repeats, n_perm,
+            args.null_repeats, n_jobs=args.jobs, include_excluded=args.include_excluded,
+            intersect_with=intersect,
+            channels=EMOTIV_CHANNELS if args.channels == "emotiv" else None,
+            leakage_control=not args.no_leakage_control, on_event=on_event,
+        )  # fmt: skip
+    table = Table(title=f"Clasificación {name}")
+    for col in (
+        "Contraste",
+        "Registros",
+        "Exact. bal. [IC 95%]",
+        "AUC",
+        "Azar (P95)",
+        "p Holm",
+        "Fuga",
+    ):
+        table.add_column(col, justify="right")
+    for _, r in summary.iterrows():
+        table.add_row(
+            r["contrast"],
+            f"{int(r['n_recordings'])}",
+            f"{r['bacc']:.3f} [{r['bacc_ci_low']:.3f}, {r['bacc_ci_high']:.3f}]",
+            f"{r['auc']:.3f}",
+            f"{r['chance_p95']:.3f}" if "chance_p95" in r and pd.notna(r["chance_p95"]) else "-",
+            f"{r['p_holm']:.4f}" if "p_holm" in r and pd.notna(r["p_holm"]) else "-",
+            f"{r['epoch_bacc_epoch_cv']:.3f}" if "epoch_bacc_epoch_cv" in r else "-",
+        )
+    console.print(table)
+    console.print(
+        "Exactitud balanceada por registro. Azar: percentil 95 de la nula por permutación. "
+        "Fuga: exactitud por época con validación por épocas (control, no desempeño)."
+    )
+
+
 def main(argv: list[str] | None = None) -> None:
     """Ejecuta el subcomando indicado."""
     args = _parser().parse_args(argv)
@@ -207,6 +289,8 @@ def main(argv: list[str] | None = None) -> None:
         _compare_matlab(args)
     elif args.command == "features":
         _features(args)
+    elif args.command == "classify":
+        _classify(args)
 
 
 if __name__ == "__main__":
