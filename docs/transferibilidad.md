@@ -46,7 +46,20 @@ Sobre cada registro completo de BioSemi, en el orden del equipo:
    filtros y reglas de épocas.
 
 La CAR cancela cualquier referencia común, así que P3 solo importa para la
-cuantización. **No se emulan** el ruido del electrodo salino, la impedancia ni la
+cuantización.
+
+**Lo que muestra la primera corrida.** La limpieza automática pierde fuerza con 14
+canales laterales:
+
+- **PREP no transfiere.** Su referencia robusta abortó en 4 de 46 registros: marcó
+  como malos al menos 13 de los 14 canales. En los demás marcó entre 3.4 y 4.5 por
+  registro (24% a 32% del montaje). Sus criterios de correlación suponen vecinos
+  cercanos, y el EPOC X no tiene línea media. La detección queda como diagnóstico,
+  sin referencia robusta cuando esta no es posible; solo se interpolan canales planos
+  o con NaN, igual que en V1.
+- **La ICA separa menos.** Con 13 componentes se excluyen 1.4 a 2.2 por registro,
+  frente a 5.3 a 8.0 en V1, y el umbral pico a pico descarta más épocas. Lo que la
+  ICA no separa en el equipo de consumo, el clasificador lo recibe. **No se emulan** el ruido del electrodo salino, la impedancia ni la
 colocación del casco: la emulación es un límite superior de lo que el equipo real
 puede conservar.
 

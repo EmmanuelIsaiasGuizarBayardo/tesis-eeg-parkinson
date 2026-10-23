@@ -314,3 +314,16 @@ def test_epoc_x_profile_end_to_end(bids_dataset: tuple[Path, BIDSPath], tmp_path
     table = run_features(tmp_path / "processed" / "preproc-epocx", V1_FEATURES, tmp_path / "f")
     n_features = sum(1 for c in table.columns if "__" in c and not c.startswith("qc_"))
     assert n_features == 17 * 14  # V1 completo sobre los 14 canales, diezmado de 256 a 128 Hz
+
+
+def test_prep_falls_back_when_robust_reference_is_impossible() -> None:
+    """Con 14 canales sin correlación, PREP no puede referenciar; el registro no se pierde."""
+    rng = np.random.default_rng(13)
+    data = rng.standard_normal((14, int(40 * 256))) * 1e-5
+    data[2] = 0.0  # F3 plano: falla del registro, independiente de la referencia
+    raw = mne.io.RawArray(data, mne.create_info(list(EMOTIV_CHANNELS), 256.0, "eeg"))
+    raw.set_montage("colin27_1005")
+    report = detect_bad_channels(raw, EPOC_X)
+    assert not report.robust_reference
+    assert report.unusable == ["F3"]
+    assert channels_to_interpolate(report, EPOC_X) == ["F3"]

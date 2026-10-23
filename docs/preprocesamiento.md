@@ -82,6 +82,10 @@ interpolados pertenecen al EPOC X, que se reconstruirían desde electrodos que e
 dispositivo no tiene. HC recibía más del doble de interpolación que PD on. Y la
 topografía se suavizaba en un tercio del montaje.
 
+Si la referencia robusta no es posible (PREP deja menos de 2 canales buenos, como
+ocurre con el montaje del EPOC X), la detección se hace sin referenciar y el QC lo
+registra en `robust_reference`.
+
 Decisión, tomada tras ver el QC por el patrón espacial y no por las etiquetas: `v1`
 interpola solo canales planos o con NaN, que son fallas del registro, y deja el
 artefacto muscular y ocular a la ICA; un canal ruidoso aislado lo separa la ICA y lo

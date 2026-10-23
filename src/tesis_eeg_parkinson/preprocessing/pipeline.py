@@ -190,6 +190,7 @@ def _summary_row(qc: dict[str, Any]) -> dict[str, Any]:
         "n_interpolated": qc["n_interpolated"],
         "prep_flagged": ",".join(qc["bad_channels"]["prep_bads"]),
         "n_prep_flagged": qc["n_prep_flagged"],
+        "prep_robust_reference": qc["bad_channels"]["robust_reference"],
         "needs_review": qc["needs_review"],
         "n_ics_excluded": len(qc["ica"]["excluded"]),
         "excluded_labels": ",".join(qc["ica"]["excluded_labels"]),

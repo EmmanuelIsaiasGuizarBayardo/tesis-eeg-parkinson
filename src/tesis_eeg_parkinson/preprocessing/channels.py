@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 import mne
 from pyprep import Reference
+from pyprep.find_noisy_channels import NoisyChannels
 
 from tesis_eeg_parkinson.preprocessing.config import PreprocessingConfig
 
@@ -33,6 +34,10 @@ class BadChannelReport:
     correlation_bad_fraction : dict of str to float
         Fracción de ventanas de 1 s con correlación máxima < 0.4, por canal.
         Un canal se marca si supera 0.01; en 3 min, eso son unas 2 ventanas.
+    robust_reference : bool
+        False si la referencia robusta de PREP no fue posible (marcó casi todos los
+        canales) y la detección se hizo sin referenciar. Ocurre con los 14 canales
+        laterales del EPOC X.
     """
 
     prep_bads: list[str]
@@ -40,6 +45,7 @@ class BadChannelReport:
     by_criterion: dict[str, list[str]]
     by_criterion_unreferenced: dict[str, list[str]]
     correlation_bad_fraction: dict[str, float]
+    robust_reference: bool = True
 
 
 @contextmanager
@@ -87,7 +93,14 @@ def detect_bad_channels(raw: mne.io.BaseRaw, cfg: PreprocessingConfig) -> BadCha
             ransac=False,
             random_state=cfg.seed,
         )
-        ref.perform_reference(max_iterations=cfg.prep_max_iterations, interpolate_bads=False)
+        try:
+            ref.perform_reference(max_iterations=cfg.prep_max_iterations, interpolate_bads=False)
+        except ValueError as err:
+            # PREP aborta si deja menos de 2 canales buenos. La detección de PREP es
+            # solo diagnóstico; los canales inutilizables no dependen de la referencia.
+            if "TooManyBad" not in str(err):
+                raise
+            return _unreferenced_report(raw, cfg)
     corr = ref._extra_info["interpolated"]["bad_by_correlation"]["bad_window_fractions"]
     original = ref.noisy_channels_original
     return BadChannelReport(
@@ -96,6 +109,28 @@ def detect_bad_channels(raw: mne.io.BaseRaw, cfg: PreprocessingConfig) -> BadCha
         by_criterion=_nonempty(ref.noisy_channels_before_interpolation),
         by_criterion_unreferenced=_nonempty(ref.noisy_channels_original),
         correlation_bad_fraction={ch: round(float(f), 4) for ch, f in zip(chs, corr, strict=True)},
+    )
+
+
+def _unreferenced_report(raw: mne.io.BaseRaw, cfg: PreprocessingConfig) -> BadChannelReport:
+    """Detección de PREP sin referencia robusta, para cuando esta no es posible."""
+    detector = NoisyChannels(raw.copy(), do_detrend=True, random_state=cfg.seed, ransac=False)
+    with _quiet_pyprep():
+        detector.find_bad_by_nan_flat()
+        detector.find_bad_by_deviation()
+        detector.find_bad_by_correlation()
+        detector.find_bad_by_hfnoise()
+    found = detector.get_bads(as_dict=True)
+    corr = detector._extra_info["bad_by_correlation"]["bad_window_fractions"]
+    return BadChannelReport(
+        prep_bads=sorted(found["bad_all"]),
+        unusable=sorted(set(found["bad_by_nan"]) | set(found["bad_by_flat"])),
+        by_criterion={},
+        by_criterion_unreferenced=_nonempty({k: v for k, v in found.items() if k != "bad_all"}),
+        correlation_bad_fraction={
+            ch: round(float(v), 4) for ch, v in zip(raw.ch_names, corr, strict=True)
+        },
+        robust_reference=False,
     )
 
 
