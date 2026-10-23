@@ -185,6 +185,7 @@ def _summary_row(qc: dict[str, Any]) -> dict[str, Any]:
         "rest_onset_s": rec["rest_onset_s"],
         "curator_preprocessed": rec["curator_preprocessed"],
         "exclude_primary": qc["exclude_primary"],
+        "exclude_reason": qc["exclude_reason"],
         "line_freq_sidecar": rec["line_freq_sidecar"],
         "interpolated": ",".join(qc["interpolated"] + sorted(qc["persistent"])),
         "n_interpolated": qc["n_interpolated"],

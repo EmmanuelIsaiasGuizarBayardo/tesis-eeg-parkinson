@@ -42,6 +42,7 @@ from tesis_eeg_parkinson.preprocessing.filters import (
 from tesis_eeg_parkinson.preprocessing.ica import select_artifact_components
 from tesis_eeg_parkinson.preprocessing.io import find_recordings, load_raw, read_rest_onset
 from tesis_eeg_parkinson.preprocessing.pipeline import (
+    _summary_row,
     assert_outside_raw,
     preprocess_recording,
     run_dataset,
@@ -238,6 +239,7 @@ def test_preprocess_recording_end_to_end(
     assert qc["ica"]["n_components"] == len(SCALP_CHANNELS) - 1 - len(qc["interpolated"])
     assert qc["config"]["name"] == "v1" and "git_sha" in qc["run_context"]
     assert qc["exclude_primary"] and "curator_preprocessed" in qc["exclude_reason"]
+    assert _summary_row(qc)["exclude_reason"] == qc["exclude_reason"]  # llega al resumen
     assert set(qc["bad_channels"]["correlation_bad_fraction"]) == set(SCALP_CHANNELS)
     assert (deriv / f"{stem}_desc-qc.json").exists()
     assert (tmp_path / "qc" / "preproc-v1" / f"{stem}_psd.pdf").exists()
