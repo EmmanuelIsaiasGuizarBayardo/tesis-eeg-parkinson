@@ -21,12 +21,34 @@ biomarcador documentado sobrevive al cambio de equipo.
 
 **Forma de onda de beta.** Su asimetría vive en los armónicos: un beta de 20 Hz
 necesita su armónico de 40 Hz. El EPOC X llega a ~43 Hz, V1 a 32 Hz. La variante
-`v1-43` mide si T3 recupera esa forma dentro de la banda del EPOC X; V1 mantiene
-32 Hz porque un corte más alto deja pasar más actividad muscular, frecuente en PD, y
-el modelo podría aprender esa contaminación en lugar de la dinámica cortical.
+`v1-43` mide si T3 recupera esa forma dentro de la banda del EPOC X. V1 mantiene 32 Hz
+por la actividad muscular, y `v1-43` lo respalda: con los mismos componentes de ICA,
+subir el corte descartó 12 épocas más, todas en PD (8 off, 4 on, 0 en HC); 7 de las 12
+por FC5, F7 o T8, sobre el músculo temporal, y 2 por Fp1. Es consistente con actividad
+muscular, sin demostrarla. Y 7 de esas 12 caen en canales del EPOC X: la banda del
+equipo deja entrar contenido que aquí afecta más a PD que a HC, un atajo no cortical
+para un clasificador.
 
 **Cobertura espacial.** Los 14 canales del EPOC X no incluyen la línea media ni los
-centro-parietales (Cz, CP1, CP2). Pendiente: perfil de simulación del EPOC X.
+centro-parietales (Cz, CP1, CP2).
+
+## Emulación del EPOC X (perfil `epocx`)
+
+Sobre cada registro completo de BioSemi, en el orden del equipo:
+
+1. Referencia en P3, la posición de su CMS.
+2. Sus 14 canales; ni la CAR ni la ICA ven electrodos que el equipo no tiene.
+3. Su banda, 0.16 a 43 Hz.
+4. Su muestreo de 256 Hz y su paso de 16 bits (0.1275 µV), el modo del piloto
+   planeado. A 256 Hz la entrada de ICLabel conserva una frecuencia de Nyquist por
+   encima de 100 Hz, como en su entrenamiento; las features se diezman a 128 Hz.
+5. El resto de V1 igual: CAR sobre 14 canales, ICA con 13 componentes, ICLabel,
+   filtros y reglas de épocas.
+
+La CAR cancela cualquier referencia común, así que P3 solo importa para la
+cuantización. **No se emulan** el ruido del electrodo salino, la impedancia ni la
+colocación del casco: la emulación es un límite superior de lo que el equipo real
+puede conservar.
 
 ## Límites para un análisis casi en tiempo real
 

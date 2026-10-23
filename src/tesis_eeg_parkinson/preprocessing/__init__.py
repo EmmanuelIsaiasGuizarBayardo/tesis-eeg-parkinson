@@ -1,6 +1,7 @@
 """Preprocesamiento de ds002778: migración validada del pipeline de EEGLAB."""
 
 from tesis_eeg_parkinson.preprocessing.config import (
+    EPOC_X,
     MATLAB,
     PROFILES,
     V1,
@@ -14,6 +15,7 @@ __all__ = [
     "MATLAB",
     "PROFILES",
     "V1",
+    "EPOC_X",
     "V1_43",
     "V1_PREP",
     "PreprocessingConfig",

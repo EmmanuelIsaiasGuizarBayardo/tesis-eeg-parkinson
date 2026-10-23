@@ -17,12 +17,22 @@ import pytest
 from mne_bids import BIDSPath, write_raw_bids
 from scipy import signal
 
+from tesis_eeg_parkinson.features import V1 as V1_FEATURES
+from tesis_eeg_parkinson.features import run_features
 from tesis_eeg_parkinson.preprocessing.channels import (
     channels_to_interpolate,
     detect_bad_channels,
     interpolate_bad_channels,
 )
-from tesis_eeg_parkinson.preprocessing.config import MATLAB, SCALP_CHANNELS, V1, V1_PREP
+from tesis_eeg_parkinson.preprocessing.config import (
+    EMOTIV_CHANNELS,
+    EPOC_X,
+    MATLAB,
+    SCALP_CHANNELS,
+    V1,
+    V1_PREP,
+)
+from tesis_eeg_parkinson.preprocessing.device import emulate_epoc_x
 from tesis_eeg_parkinson.preprocessing.epochs import make_epochs, persistent_bad_channels
 from tesis_eeg_parkinson.preprocessing.filters import (
     apply_final_filter,
@@ -270,3 +280,37 @@ def test_min_epochs_rule_marks_exclusion(
     qc = preprocess_recording(bids_path, cfg, out_root=tmp_path / "processed")
     assert qc["exclude_primary"]
     assert qc["exclude_reason"] == "curator_preprocessed;min_epochs"
+
+
+def test_epoc_x_emulation() -> None:
+    """14 canales, 256 Hz, banda del equipo, cuantización y rechazo del modo común."""
+    base = _synthetic_eeg(40.0, seed=12)
+    t = base.times
+    common = 5e-5 * np.sin(2 * np.pi * 3 * t)  # señal común a los 32 canales, P3 incluido
+    tone = np.zeros_like(base.get_data())
+    tone[SCALP_CHANNELS.index("O1")] = 2e-5 * np.sin(2 * np.pi * 60 * t)
+    with_common = mne.io.RawArray(base.get_data() + common + tone, base.info)
+    without = mne.io.RawArray(base.get_data() + tone, base.info)
+    a, b = emulate_epoc_x(with_common, EPOC_X), emulate_epoc_x(without, EPOC_X)
+    step = microvolts_to_volts(EPOC_X.device_step_uv)
+    assert a.ch_names == list(EMOTIV_CHANNELS) and a.info["sfreq"] == 256.0
+    q = a.get_data() / step
+    np.testing.assert_allclose(q, np.round(q), atol=1e-6)  # valores sobre la rejilla del ADC
+    assert np.abs(a.get_data() - b.get_data()).max() <= step * 1.0001  # modo común rechazado
+    spectrum = a.compute_psd(fmin=55, fmax=65).get_data()
+    in_band = a.compute_psd(fmin=8, fmax=12).get_data()
+    o1 = list(EMOTIV_CHANNELS).index("O1")
+    assert 10 * np.log10(spectrum[o1].max() / in_band[o1].max()) < -20  # 60 Hz fuera de banda
+
+
+def test_epoc_x_profile_end_to_end(bids_dataset: tuple[Path, BIDSPath], tmp_path: Path) -> None:
+    _, bids_path = bids_dataset
+    qc = preprocess_recording(bids_path, replace(EPOC_X, ica_max_iter=200), tmp_path / "processed")
+    deriv = tmp_path / "processed" / "preproc-epocx" / "sub-pd6" / "ses-on" / "eeg"
+    epochs = mne.read_epochs(deriv / "sub-pd6_ses-on_task-rest_desc-clean_epo.fif")
+    assert epochs.ch_names == list(EMOTIV_CHANNELS)
+    assert epochs.info["sfreq"] == 256.0 and len(epochs.times) == 2560
+    assert qc["ica"]["n_components"] == 13 - len(qc["interpolated"])
+    table = run_features(tmp_path / "processed" / "preproc-epocx", V1_FEATURES, tmp_path / "f")
+    n_features = sum(1 for c in table.columns if "__" in c and not c.startswith("qc_"))
+    assert n_features == 17 * 14  # V1 completo sobre los 14 canales, diezmado de 256 a 128 Hz

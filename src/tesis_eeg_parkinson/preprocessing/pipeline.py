@@ -22,7 +22,6 @@ from tesis_eeg_parkinson.preprocessing.channels import (
 from tesis_eeg_parkinson.preprocessing.config import (
     GRID_LINE_FREQ,
     ICLABEL_CLASSES,
-    SCALP_CHANNELS,
     PreprocessingConfig,
 )
 from tesis_eeg_parkinson.preprocessing.epochs import make_epochs, persistent_bad_channels
@@ -114,7 +113,7 @@ def preprocess_recording(
         interpolate_bad_channels(raw, interpolated)
     raw.set_eeg_reference("average", projection=False, verbose="error")
     raw_car = raw.copy() if figures_root is not None else None
-    rank = len(SCALP_CHANNELS) - 1 - len(interpolated)
+    rank = len(raw.ch_names) - 1 - len(interpolated)
 
     stage("ICA")
     copy = ica_copy(raw, cfg)

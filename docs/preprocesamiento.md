@@ -9,6 +9,8 @@ El código vive en `src/tesis_eeg_parkinson/preprocessing/` y cada parámetro, e
 - **`v1-43`**: igual a `v1`, pero con el pasa-bajas en 43 Hz, la banda del EPOC X.
   Conserva el segundo armónico de beta, que su forma de onda necesita, a costa de más
   actividad muscular. Solo para el análisis de sensibilidad; ver `docs/transferibilidad.md`.
+- **`epocx`**: V1 sobre los registros emulados como si vinieran del Emotiv EPOC X
+  (14 canales, 256 Hz, 16 bits); ver `docs/transferibilidad.md`.
 - **`matlab`**: reproduce el procesamiento previo en EEGLAB. No es un método de la
   tesis; existe para la verificación que resume el apéndice de este documento.
 
@@ -196,6 +198,7 @@ sintéticas:
 uv run tesis-eeg-parkinson preprocess --profile v1
 uv run tesis-eeg-parkinson preprocess --profile v1-prep
 uv run tesis-eeg-parkinson preprocess --profile v1-43
+uv run tesis-eeg-parkinson preprocess --profile epocx
 uv run tesis-eeg-parkinson preprocess --profile v1 --subject pd6 pd16
 ```
 

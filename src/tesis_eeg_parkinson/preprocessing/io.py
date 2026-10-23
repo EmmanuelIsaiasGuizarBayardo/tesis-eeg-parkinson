@@ -14,6 +14,7 @@ from tesis_eeg_parkinson.preprocessing.config import (
     SCALP_CHANNELS,
     PreprocessingConfig,
 )
+from tesis_eeg_parkinson.preprocessing.device import emulate_epoc_x
 
 
 @dataclass(frozen=True)
@@ -131,6 +132,8 @@ def load_raw(bids_path: BIDSPath, cfg: PreprocessingConfig) -> tuple[mne.io.Base
     raw.reorder_channels(list(SCALP_CHANNELS))
     raw.set_channel_types(dict.fromkeys(SCALP_CHANNELS, "eeg"))
     raw.set_montage(cfg.montage, match_case=False, on_missing="raise")
+    if cfg.device == "epoc_x":
+        emulate_epoc_x(raw, cfg)  # registro completo, antes del recorte
 
     duration = raw.times[-1] + 1 / raw.info["sfreq"]
     onset = read_rest_onset(bids_path)

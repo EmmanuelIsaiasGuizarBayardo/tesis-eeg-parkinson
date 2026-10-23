@@ -5,6 +5,7 @@
   de sensibilidad.
 - `V1_43` es igual pero con el pasa-bajas en 43 Hz (banda del EPOC X); solo para el
   análisis de sensibilidad de la forma de onda de beta.
+- `EPOC_X` aplica V1 a los registros emulados como si vinieran del Emotiv EPOC X.
 - `MATLAB` reproduce el procesamiento previo en EEGLAB. No es un método de la
   tesis: existe para verificar la concordancia que se reporta en el apéndice.
 
@@ -71,6 +72,11 @@ class PreprocessingConfig:
         Iteraciones máximas de la referencia robusta.
     max_bad_channels : int
         Por encima de este número, el registro se marca para revisión manual.
+    device : {"biosemi", "epoc_x"}
+        Equipo de los datos. ``epoc_x`` emula el Emotiv EPOC X (ver device.py).
+    device_reference, device_band, device_sfreq, device_step_uv
+        Parámetros de la emulación: referencia (CMS), banda, muestreo de salida y
+        paso de cuantización en µV.
     ica_copy_l_freq, ica_copy_h_freq : float, float or None
         Banda FIR de la copia sobre la que se ajusta la ICA.
     ica_max_iter : int or "auto"
@@ -110,6 +116,11 @@ class PreprocessingConfig:
     interpolate: Literal["unusable", "prep"] = "unusable"
     prep_max_iterations: int = 4
     max_bad_channels: int = 3
+    device: Literal["biosemi", "epoc_x"] = "biosemi"
+    device_reference: str = "P3"
+    device_band: tuple[float, float] = (0.16, 43.0)
+    device_sfreq: float = 256.0
+    device_step_uv: float = 0.1275
     ica_copy_l_freq: float = 1.0
     ica_copy_h_freq: float | None = 100.0
     ica_max_iter: int | Literal["auto"] = "auto"
@@ -153,4 +164,8 @@ V1_PREP = replace(V1, name="v1-prep", interpolate="prep")
 # armónico de beta, necesario para su forma de onda, a costa de más actividad muscular.
 V1_43 = replace(V1, name="v1-43", final_h_freq=43.0)
 
-PROFILES: dict[str, PreprocessingConfig] = {p.name: p for p in (V1, V1_PREP, V1_43, MATLAB)}
+# EPOC X emulado en su modo de 256 Hz y 16 bits (el del piloto planeado). El equipo
+# ya trae su notch, y a 256 Hz los armónicos de 180 y 240 Hz no existen.
+EPOC_X = replace(V1, name="epocx", device="epoc_x", notch_freqs=())
+
+PROFILES: dict[str, PreprocessingConfig] = {p.name: p for p in (V1, V1_PREP, V1_43, EPOC_X, MATLAB)}
