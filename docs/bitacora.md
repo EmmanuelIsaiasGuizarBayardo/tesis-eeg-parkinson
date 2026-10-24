@@ -84,15 +84,49 @@ Perfiles `v1-prep`, `v1-43`, `matlab` y `epocx` (este último desde `b64e6b4`).
 - `matlab`: concordancia con EEGLAB de 0.958 (mediana por registro); la diferencia
   la explica la ICA.
 
+## Etapa 4. Clasificación
+
+Prerregistro `7d80c45`, commiteado antes de cualquier corrida; código `bf1d203`. Se
+corrieron el análisis principal y los nueve secundarios prerregistrados, sin
+desviaciones. Tabla y figuras: `uv run tesis-eeg-parkinson report`.
+
+**Principal** (V1, regresión logística L2 anidada; exactitud balanceada por registro):
+
+| Contraste | Registros | Exactitud [IC 95%] | AUC | Azar (P95) | p Holm | Fuga (época) |
+|---|---|---|---|---|---|---|
+| Off vs HC | 31 | 0.613 [0.443, 0.777] | 0.571 | 0.677 | 0.192 | 0.944 |
+| On vs HC | 29 | 0.659 [0.477, 0.829] | 0.688 | 0.690 | 0.192 | 0.961 |
+| Off vs On | 26 | 0.692 [0.577, 0.808] | 0.675 | 0.654 | 0.081 | 0.875 |
+
+**Hallazgos para la tesis.**
+
+- Ningún contraste supera el criterio prerregistrado (Holm < 0.05). Off vs On supera
+  el percentil 95 de su nula sin corregir (p = 0.027): exploratorio.
+- El azar empírico (P95) va de 0.65 a 0.71 en todos los análisis: con unos 30
+  registros, superar el azar exige alrededor de 0.68, no 0.5.
+- La fuga se reproduce en los diez análisis: con validación por épocas, de 0.81 a
+  0.995; por sujeto, de 0.44 a 0.75.
+- Con las features de Aljalal, la fuga es mayor (0.978 a 0.995) que con V1 (0.875 a
+  0.961). Hipótesis: las features dependientes de la amplitud codifican la identidad
+  del sujeto; también son tres veces más.
+- Con pd6 y pd16 ON incluidas, Off vs On sube a 0.733 (p Holm = 0.036 dentro de su
+  propia familia, no confirmatoria): sus sesiones ON tienen otra procedencia. Respalda
+  la exclusión a priori.
+- Transferencia, mismos sujetos (32 canales, 14 canales, EPOC X emulado): Off vs HC
+  0.600, 0.567 y 0.467; On vs HC 0.679, 0.579 y 0.436; Off vs On 0.692, 0.654 y
+  0.654. Descriptivo: las diferencias caben en los IC, y la emulación es un límite
+  superior.
+- Sin señal no lineal consistente: el bosque aleatorio da el valor más alto de los 30
+  (On vs HC, 0.745), pero sin permutaciones y elegido entre muchos; no se interpreta.
+- Off vs On compara dos sesiones (día, colocación del gorro): la medicación es una
+  causa posible de la diferencia, no la única.
+
 ## Pendientes para el final
 
-**Para la clasificación (siguiente etapa).**
+**Para la interpretación (siguiente etapa).**
 
-- Los conjuntos de sujetos difieren entre perfiles (hc1 está en V1 y no en `epocx`):
-  la comparación entre equipos debe hacerse sobre la intersección.
-- Los NaN se imputan dentro de la validación cruzada, ajustando solo con
-  entrenamiento.
-- Evaluación por sujeto, permutación por sujeto, selección anidada y azar empírico.
+- Topografías de los patrones de Haufe del análisis principal (`patterns.tsv`).
+- Piloto con un EPOC X real: la emulación es un límite superior.
 
 **Para el texto de la tesis.**
 

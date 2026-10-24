@@ -7,6 +7,7 @@ Uso::
     uv run tesis-eeg-parkinson compare-matlab
     uv run tesis-eeg-parkinson features --profile v1
     uv run tesis-eeg-parkinson classify --features v1 --preproc v1
+    uv run tesis-eeg-parkinson report
 """
 
 from __future__ import annotations
@@ -31,6 +32,7 @@ from rich.table import Table
 
 from tesis_eeg_parkinson.classification.data import CONTRASTS
 from tesis_eeg_parkinson.classification.models import MODELS
+from tesis_eeg_parkinson.classification.report import write_report
 from tesis_eeg_parkinson.classification.run import run_analysis
 from tesis_eeg_parkinson.features import PROFILES as FEATURE_PROFILES
 from tesis_eeg_parkinson.features import run_features
@@ -80,6 +82,8 @@ def _parser() -> argparse.ArgumentParser:
     cls.add_argument("--no-leakage-control", action="store_true")
     cls.add_argument("--processed", type=Path, default=RAIZ / "data" / "processed")
     cls.add_argument("--out", type=Path, default=RAIZ / "results" / "classification")
+    rep = sub.add_parser("report", help="Tabla y figuras de todos los análisis de clasificación")
+    rep.add_argument("--results", type=Path, default=RAIZ / "results" / "classification")
     return parser
 
 
@@ -279,6 +283,19 @@ def _classify(args: argparse.Namespace) -> None:
     )
 
 
+def _report(args: argparse.Namespace) -> None:
+    paths = write_report(args.results)
+    table = pd.read_csv(paths["resumen"], sep="\t")
+    inflation = table["epoch_bacc_epoch_cv"] - table["epoch_bacc_subject_cv"]
+    console.print(
+        f"{table['analysis'].nunique()} análisis, {len(table)} filas. Inflación por fuga "
+        f"(época, misma unidad): mediana {inflation.median():.3f}, "
+        f"rango {inflation.min():.3f} a {inflation.max():.3f}."
+    )
+    for name, path in paths.items():
+        console.print(f"{name}: {path}")
+
+
 def main(argv: list[str] | None = None) -> None:
     """Ejecuta el subcomando indicado."""
     args = _parser().parse_args(argv)
@@ -291,6 +308,8 @@ def main(argv: list[str] | None = None) -> None:
         _features(args)
     elif args.command == "classify":
         _classify(args)
+    elif args.command == "report":
+        _report(args)
 
 
 if __name__ == "__main__":

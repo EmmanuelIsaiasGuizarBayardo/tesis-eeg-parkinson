@@ -15,6 +15,7 @@ from tesis_eeg_parkinson.classification.evaluate import (
     permute_labels,
     run_contrast,
 )
+from tesis_eeg_parkinson.classification.report import write_report
 from tesis_eeg_parkinson.classification.run import run_analysis
 
 CHANNELS = ("AF3", "F7", "Cz", "Pz")
@@ -122,3 +123,15 @@ def test_run_analysis_writes_tables(tmp_path: Path) -> None:
     assert list(summary["contrast"]) == ["off_vs_hc", "off_vs_on"] and "p_holm" in summary
     for name in ("summary.tsv", "recordings.tsv", "null.tsv", "patterns.tsv", "run.json"):
         assert (tmp_path / "out" / name).exists()
+
+
+def test_report_collects_analyses_and_draws_figures(tmp_path: Path) -> None:
+    path = tmp_path / "features.tsv"
+    _table(effect=1.0).to_csv(path, sep="\t", index=False)
+    for name, model, perms in (("v1_v1_lr", "lr", 4), ("v1_v1_slda", "slda", 0)):
+        run_analysis(path, tmp_path / "res" / name, model, repeats=1, n_perm=perms,
+                     null_repeats=1)  # fmt: skip
+    paths = write_report(tmp_path / "res")
+    table = pd.read_csv(paths["resumen"], sep="\t")
+    assert set(table["analysis"]) == {"v1_v1_lr", "v1_v1_slda"} and len(table) == 6
+    assert paths["resultados"].exists() and paths["fuga"].exists()
