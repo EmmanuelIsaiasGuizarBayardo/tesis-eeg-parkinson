@@ -9,6 +9,7 @@ Uso::
     uv run tesis-eeg-parkinson classify --features v1 --preproc v1
     uv run tesis-eeg-parkinson report
     uv run tesis-eeg-parkinson interpret
+    uv run tesis-eeg-parkinson aperiodic-check
 """
 
 from __future__ import annotations
@@ -38,6 +39,7 @@ from tesis_eeg_parkinson.classification.run import run_analysis
 from tesis_eeg_parkinson.features import PROFILES as FEATURE_PROFILES
 from tesis_eeg_parkinson.features import run_features
 from tesis_eeg_parkinson.interpretation import run_interpretation
+from tesis_eeg_parkinson.interpretation.aperiodic import run_aperiodic_check
 from tesis_eeg_parkinson.interpretation.figures import plot_contrast_topomaps, plot_magnitude
 from tesis_eeg_parkinson.preprocessing import PROFILES, run_dataset
 from tesis_eeg_parkinson.preprocessing.io import find_recordings
@@ -94,6 +96,9 @@ def _parser() -> argparse.ArgumentParser:
     itp.add_argument("--jobs", type=int, default=-1)
     itp.add_argument("--processed", type=Path, default=RAIZ / "data" / "processed")
     itp.add_argument("--out", type=Path, default=RAIZ / "results" / "interpretation")
+    ape = sub.add_parser("aperiodic-check", help="Exponente OFF vs ON: ¿cortical o muscular?")
+    ape.add_argument("--processed", type=Path, default=RAIZ / "data" / "processed")
+    ape.add_argument("--out", type=Path, default=RAIZ / "results" / "interpretation" / "aperiodic")
     return parser
 
 
@@ -330,6 +335,23 @@ def _interpret(args: argparse.Namespace) -> None:
     console.print(f"Tabla y figuras en {out}")
 
 
+def _aperiodic_check(args: argparse.Namespace) -> None:
+    with console.status("Ajustando exponentes en 8 condiciones..."):
+        _, summary = run_aperiodic_check(args.processed, args.out)
+    table = Table(title="Exponente OFF − ON (13 pacientes; exploratorio)")
+    for col in ("Ref.", "Rango", "Canales", "Media [IC 95%]", "OFF<ON", "p Wilcoxon", "ρ músculo"):
+        table.add_column(col, justify="right")
+    for _, r in summary.sort_values(["reference", "range", "channels"]).iterrows():
+        table.add_row(
+            r["reference"].upper(), r["range"], r["channels"],
+            f"{r['delta_mean']:+.3f} [{r['ci_low']:+.3f}, {r['ci_high']:+.3f}]",
+            f"{int(r['n_negative'])}/{int(r['n'])}", f"{r['p_wilcoxon']:.3f}",
+            f"{r['rho_emg']:+.2f} (p {r['p_rho']:.2f})",
+        )  # fmt: skip
+    console.print(table)
+    console.print(f"Tablas y figura en {args.out}")
+
+
 def main(argv: list[str] | None = None) -> None:
     """Ejecuta el subcomando indicado."""
     args = _parser().parse_args(argv)
@@ -346,6 +368,8 @@ def main(argv: list[str] | None = None) -> None:
         _report(args)
     elif args.command == "interpret":
         _interpret(args)
+    elif args.command == "aperiodic-check":
+        _aperiodic_check(args)
 
 
 if __name__ == "__main__":

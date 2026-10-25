@@ -197,13 +197,42 @@ Fp1 y Fp2 se proyectaban fuera del contorno y el mapa se desbordaba. Se fijaron
 `extrapolate="head"` y `border="mean"`; una prueba verifica que los 32 electrodos caen
 dentro del contorno.
 
+## Etapa 5b. Exponente aperiódico y músculo (exploratorio)
+
+**Plan, fijado antes de correrlo (25 de octubre de 2026).** Pregunta: ¿el espectro más
+plano en OFF que sugieren los patrones de Off vs On es cortical o muscular? Es una
+comparación directa por registro, no un patrón de clasificador:
+
+- 13 pacientes con ambas sesiones (los pares del análisis principal), épocas de V1.
+- Exponente aperiódico (FOOOF, modo fijo) por registro y canal, promediado en dos grupos
+  fijados de antemano: laterales (F7, F8, FC5, FC6, T7, T8), sobre el músculo temporal,
+  y centro-parietales (C3, Cz, C4, CP1, CP2, P3, Pz, P4), lejos de él.
+- 8 condiciones, todas reportadas: referencia CAR o CSD (laplaciano de superficie, que
+  limita la difusión desde canales lejanos, incluida la que reparte la CAR) × ajuste de
+  2 a 30 Hz (el de V1) o de 2 a 20 Hz (menos sensible al músculo) × grupo de canales.
+- Índice muscular por registro, del preprocesamiento a 43 Hz: log10 de la potencia de
+  32 a 43 Hz sobre la de 2 a 30 Hz, en los canales laterales.
+- Por condición: media de OFF − ON con IC 95% por bootstrap de pacientes, Wilcoxon
+  exacto y Spearman entre el cambio del exponente y el del índice muscular. Valores p
+  sin corregir: es exploratorio.
+
+**Reglas de lectura, fijadas antes de correrlo.**
+
+- Apoya la explicación **cortical** si el exponente es menor en OFF en los canales
+  centro-parietales con CSD y con el ajuste de 2 a 20 Hz (IC sin el 0), y su cambio no
+  se asocia con el del índice muscular.
+- Apoya la explicación **muscular** si la diferencia se concentra en los canales
+  laterales, se desvanece en los centro-parietales con CSD o con 2 a 20 Hz (IC con el
+  0), y se asocia negativamente con el cambio del índice muscular.
+- Cualquier otro patrón es **no concluyente** y se reporta tal cual. Con 13 pares, un
+  IC que incluye el 0 no demuestra ausencia de efecto.
+
+`uv run tesis-eeg-parkinson aperiodic-check`
+
 ## Pendientes para el final
 
 **Análisis posibles, fuera del pipeline actual.**
 
-- Separar la explicación muscular de la cortical en Off vs On: ajustar el exponente en
-  un rango más bajo (p. ej., 2 a 20 Hz) o sin los canales temporales. Sería
-  exploratorio.
 - Piloto con un EPOC X real: la emulación es un límite superior.
 
 **Para el texto de la tesis.**
