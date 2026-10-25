@@ -186,9 +186,9 @@ con signo estable (102, 98 y 85 en total, de 544).
 - *Lo que pesa en cada lado.* 5 de los 11 canales estables del exponente son
   centro-parietales (C3, C4, CP2, Pz, PO4), lejos del músculo temporal, lo que no apoya
   una explicación solo muscular; pero la CAR reparte el artefacto de los canales
-  temporales entre todos los canales, así que tampoco la descarta. Con estos datos no se
-  puede separar. Además, Off vs On compara dos sesiones: la medicación es una causa
-  posible, no la única.
+  temporales entre todos los canales, así que tampoco la descarta. La etapa 5b lo
+  resolvió a favor de la explicación muscular. Además, Off vs On compara dos sesiones:
+  la medicación es una causa posible, no la única.
 - *T3.* Con el corte de 32 Hz lee la forma de onda de alfa, no la de beta.
 
 **Figuras.** Una por contraste (`patrones_<contraste>.pdf`) y `magnitud.pdf`. Las
@@ -228,6 +228,50 @@ comparación directa por registro, no un patrón de clasificador:
   IC que incluye el 0 no demuestra ausencia de efecto.
 
 `uv run tesis-eeg-parkinson aperiodic-check`
+
+**Resultado** (commit `c76089f`; exponente OFF − ON, media [IC 95%], pacientes con
+OFF < ON, Wilcoxon exacto sin corregir, Spearman con el cambio del índice muscular):
+
+| Referencia | Ajuste | Canales | OFF − ON | OFF < ON | p | ρ con músculo |
+|---|---|---|---|---|---|---|
+| CAR | 2–30 Hz | Laterales | −0.183 [−0.298, −0.066] | 10/13 | 0.021 | −0.80 |
+| CAR | 2–20 Hz | Laterales | −0.118 [−0.240, −0.005] | 9/13 | 0.110 | −0.50 |
+| CSD | 2–30 Hz | Laterales | −0.124 [−0.310, +0.052] | 8/13 | 0.273 | −0.46 |
+| CSD | 2–20 Hz | Laterales | −0.061 [−0.229, +0.109] | 7/13 | 0.455 | −0.37 |
+| CAR | 2–30 Hz | Centro-parietales | −0.029 [−0.074, +0.013] | 7/13 | 0.305 | −0.38 |
+| CAR | 2–20 Hz | Centro-parietales | −0.014 [−0.074, +0.046] | 7/13 | 0.635 | −0.26 |
+| CSD | 2–30 Hz | Centro-parietales | −0.024 [−0.092, +0.042] | 7/13 | 0.497 | −0.47 |
+| CSD | 2–20 Hz | Centro-parietales | +0.014 [−0.054, +0.091] | 6/13 | 0.893 | −0.03 |
+
+**Lectura según las reglas fijadas: apoya la explicación muscular.** Se cumplen las
+tres condiciones:
+
+1. La diferencia se concentra en los canales laterales. La única con IC sin el 0 es
+   CAR, 2–30 Hz, laterales (p = 0.021 sin corregir; con Holm sobre las 8
+   condiciones, 0.17).
+2. Se atenúa al quitar lo que el músculo aporta: con el ajuste de 2–20 Hz baja a
+   −0.118, y con CSD los IC incluyen el 0. En los centro-parietales queda entre −0.029
+   y +0.014 en las cuatro condiciones.
+3. Sigue al músculo: ρ = −0.80 con el cambio del índice muscular en la condición
+   lateral con CAR y 2–30 Hz, y −0.03 en la más limpia (CSD, 2–20 Hz,
+   centro-parietales).
+
+**Conclusión para la tesis.** El espectro más plano en OFF que sugerían los patrones
+de Haufe se explica mejor por actividad muscular en los canales laterales que por un
+cambio cortical. No hay evidencia de un cambio cortical del exponente: en la condición
+más limpia, el IC descarta un aplanamiento en OFF mayor de unas 0.05 unidades, pero no
+uno menor. La hipótesis de excitación-inhibición no queda refutada; queda sin apoyo en
+estos datos, con 13 pares. Los canales centro-parietales estables del patrón son
+compatibles con la difusión que introduce la CAR y con la covarianza entre features de
+un modelo multivariado; la comparación directa no muestra diferencia en ellos. Que la
+actividad muscular provenga de rigidez o tensión sin medicación es plausible, pero no
+se midió.
+
+**Límite del índice muscular.** Se mide en los mismos canales laterales que el
+exponente y ambos reflejan potencia de alta frecuencia: la correlación indica que el
+cambio del exponente acompaña al contenido de alta frecuencia, que es lo esperado si
+el origen es muscular, pero el índice no es una medida independiente del músculo
+(como lo sería una EMG).
 
 ## Pendientes para el final
 
