@@ -129,15 +129,81 @@ desviaciones. Tabla y figuras: `uv run tesis-eeg-parkinson report`.
 - Off vs On compara dos sesiones (día, colocación del gorro): la medicación es una
   causa posible de la diferencia, no la única.
 
+## Etapa 5. Interpretación
+
+Commit `27b2813` (patrones y estabilidad); topografías corregidas en el commit de esta
+entrada. `uv run tesis-eeg-parkinson interpret`.
+
+**Método.** Patrones de activación de Haufe et al. (2014), A = Cov(Z)·w, del modelo
+principal ajustado con todos los registros, sobre features estandarizadas. Estabilidad
+del signo: 200 remuestreos de sujetos por contraste, cada uno con su validación anidada;
+un canal es estable si su signo se mantiene en al menos 95% de ellos. Adición
+exploratoria, decidida antes de mirar los patrones (ver Etapa 4).
+
+**Alcance.** Son patrones de modelos que no superaron la prueba confirmatoria. Un signo
+estable indica que la asociación se repite al remuestrear a estas personas; no que
+generalice ni que permita clasificar individuos. En la tesis van como resultados
+descriptivos y como hipótesis para la discusión.
+
+**Qué mide cada feature.** El centro de alfa es periódico (potencia por encima del
+ajuste aperiódico de FOOOF); el exponente es aperiódico; la potencia relativa mezcla
+ambos componentes y sus cuatro bandas suman 1.
+
+**Resultados.**
+
+| Componente (features) | Off vs HC | On vs HC | Off vs On |
+|---|---|---|---|
+| Potencia relativa, mixta (4) | 35.8% (39) | 34.3% (35) | 26.7% (26) |
+| Orden temporal: PermEn ×3, SampEn (4) | 25.3% (12) | 27.0% (12) | 26.8% (12) |
+| Entropía wavelet (4) | 16.2% (31) | 16.1% (24) | 15.8% (9) |
+| Periódico: centro de alfa (1) | 10.4% (18) | 12.0% (15) | 3.9% (5) |
+| Forma de onda: T3 (3) | 7.0% (1) | 7.2% (11) | 15.3% (22) |
+| Aperiódico: exponente (1) | 5.3% (1) | 3.5% (1) | 11.5% (11) |
+
+Porcentaje de la suma de |patrón| del contraste; entre paréntesis, pares feature-canal
+con signo estable (102, 98 y 85 en total, de 544).
+
+1. **Off vs HC y On vs HC: lentificación oscilatoria difusa.** Mayor potencia relativa
+   de 4 a 8 Hz en PD (30 y 32 de 32 canales estables), menor centro de alfa (18 y 15,
+   sobre todo posteriores y temporales) y exponente casi sin participación (1 canal).
+   Lectura: el pico de alfa se desplaza hacia theta sin cambio de la pendiente 1/f,
+   coherente con Stoffers et al. (2007). Aparece igual con y sin medicación.
+2. **Off vs On: un perfil distinto.** El exponente es la feature de mayor peso (11
+   canales estables; espectro más plano en OFF); la potencia de 4 a 8 Hz es mayor en ON
+   (21 canales); T3 tiene 22 canales estables, con signos opuestos entre la región
+   posterior (P3, PO3, Oz, O2) y la frontal (Fp1, F3, FC1); y PermEn, SampEn y la
+   potencia de 16 a 32 Hz son mayores en OFF en T7, T8 y FC5.
+
+**Discusión: dos explicaciones para el espectro más plano en OFF.**
+
+- *Cortical.* El exponente aperiódico se ha propuesto como índice del balance entre
+  excitación e inhibición (Gao et al., 2017); un espectro más plano sería más excitación
+  relativa sin medicación.
+- *Muscular.* La actividad del músculo eleva la potencia de alta frecuencia en canales
+  temporales (Muthukumaraswamy, 2013) y, con ello, aplana el espectro. OFF tiene más
+  complejidad y más potencia de 16 a 32 Hz justo en T7, T8 y FC5, los canales que
+  causaron las épocas extra rechazadas a 43 Hz, todas en PD.
+- *Lo que pesa en cada lado.* 5 de los 11 canales estables del exponente son
+  centro-parietales (C3, C4, CP2, Pz, PO4), lejos del músculo temporal, lo que no apoya
+  una explicación solo muscular; pero la CAR reparte el artefacto de los canales
+  temporales entre todos los canales, así que tampoco la descarta. Con estos datos no se
+  puede separar. Además, Off vs On compara dos sesiones: la medicación es una causa
+  posible, no la única.
+- *T3.* Con el corte de 32 Hz lee la forma de onda de alfa, no la de beta.
+
+**Figuras.** Una por contraste (`patrones_<contraste>.pdf`) y `magnitud.pdf`. Las
+topografías usan el montaje `biosemi32`, el del gorro del registro: con `colin27_1005`,
+Fp1 y Fp2 se proyectaban fuera del contorno y el mapa se desbordaba. Se fijaron
+`extrapolate="head"` y `border="mean"`; una prueba verifica que los 32 electrodos caen
+dentro del contorno.
+
 ## Pendientes para el final
 
-**Para la interpretación (siguiente etapa).**
+**Análisis posibles, fuera del pipeline actual.**
 
-- Topografías de los patrones de Haufe del análisis principal:
-  `uv run tesis-eeg-parkinson interpret`.
-- Adición exploratoria, decidida el 24 de octubre de 2026, antes de mirar cualquier
-  patrón: estabilidad del signo por bootstrap de sujetos (200 remuestreos, umbral
-  95%). No estaba en el prerregistro y se reporta como exploratoria.
+- Separar la explicación muscular de la cortical en Off vs On: ajustar el exponente en
+  un rango más bajo (p. ej., 2 a 20 Hz) o sin los canales temporales. Sería
+  exploratorio.
 - Piloto con un EPOC X real: la emulación es un límite superior.
 
 **Para el texto de la tesis.**

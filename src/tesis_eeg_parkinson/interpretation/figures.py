@@ -47,8 +47,14 @@ TITLES = {"off_vs_hc": "Off vs HC", "on_vs_hc": "On vs HC", "off_vs_on": "Off vs
 
 
 def _info(channels: list[str]) -> mne.Info:
+    """Posiciones del gorro BioSemi de 32 canales, el del registro.
+
+    El montaje ``colin27_1005`` (cabeza realista) deja T7, T8, O1 y O2 por debajo del
+    ecuador de la esfera de proyección: los electrodos caen en el borde o fuera del
+    contorno y el mapa se desborda. ``biosemi32`` coincide con la esfera por defecto.
+    """
     info = mne.create_info(channels, 128.0, "eeg")
-    info.set_montage("colin27_1005")
+    info.set_montage("biosemi32", on_missing="raise")
     return info
 
 
@@ -74,7 +80,8 @@ def plot_contrast_topomaps(long: pd.DataFrame, contrast: str, fname: Path) -> Pa
         rows = rows.reindex(channels)
         mne.viz.plot_topomap(
             rows["pattern"].to_numpy(), info, axes=ax, cmap=cmap, cnorm=norm, contours=4,
-            outlines="head", sensors=False, show=False,
+            outlines="head", extrapolate="head", border="mean", image_interp="cubic",
+            sensors=False, show=False,
             mask=(rows["stability"] >= STABLE).to_numpy(),
             mask_params={"marker": "o", "markerfacecolor": "w", "markeredgecolor": "k",
                          "linewidth": 0, "markersize": 2.5},

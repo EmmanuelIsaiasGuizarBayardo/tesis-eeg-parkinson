@@ -51,3 +51,22 @@ def test_figures_are_written(tmp_path: Path) -> None:
     long = _fake_long()
     assert plot_contrast_topomaps(long, "off_vs_on", tmp_path / "t.pdf").exists()
     assert plot_magnitude(long, tmp_path / "m.pdf").exists()
+
+
+def test_topomap_positions_fall_inside_the_head() -> None:
+    """Con biosemi32, MNE proyecta los 32 electrodos dentro del contorno (radio 0.095 m).
+
+    Con colin27_1005, Fp1 y Fp2 caían fuera: era la causa de los mapas desbordados.
+    """
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import mne
+
+    from tesis_eeg_parkinson.interpretation.figures import _info
+
+    fig = mne.viz.plot_sensors(_info(list(SCALP_CHANNELS)), kind="topomap", show=False)
+    radius = np.linalg.norm(np.asarray(fig.axes[0].collections[0].get_offsets()), axis=1)
+    plt.close(fig)
+    assert radius.max() < 0.095
