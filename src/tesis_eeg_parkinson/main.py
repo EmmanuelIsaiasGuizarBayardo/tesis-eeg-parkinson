@@ -8,6 +8,7 @@ Uso::
     uv run tesis-eeg-parkinson features --profile v1
     uv run tesis-eeg-parkinson classify --features v1 --preproc v1
     uv run tesis-eeg-parkinson report
+    uv run tesis-eeg-parkinson interpret
 """
 
 from __future__ import annotations
@@ -36,6 +37,8 @@ from tesis_eeg_parkinson.classification.report import write_report
 from tesis_eeg_parkinson.classification.run import run_analysis
 from tesis_eeg_parkinson.features import PROFILES as FEATURE_PROFILES
 from tesis_eeg_parkinson.features import run_features
+from tesis_eeg_parkinson.interpretation import run_interpretation
+from tesis_eeg_parkinson.interpretation.figures import plot_contrast_topomaps, plot_magnitude
 from tesis_eeg_parkinson.preprocessing import PROFILES, run_dataset
 from tesis_eeg_parkinson.preprocessing.io import find_recordings
 from tesis_eeg_parkinson.preprocessing.pipeline import EXPECTED_RECORDINGS
@@ -84,6 +87,13 @@ def _parser() -> argparse.ArgumentParser:
     cls.add_argument("--out", type=Path, default=RAIZ / "results" / "classification")
     rep = sub.add_parser("report", help="Tabla y figuras de todos los análisis de clasificación")
     rep.add_argument("--results", type=Path, default=RAIZ / "results" / "classification")
+    itp = sub.add_parser("interpret", help="Patrones de Haufe, estabilidad y topografías")
+    itp.add_argument("--features", choices=sorted(FEATURE_PROFILES), default="v1")
+    itp.add_argument("--preproc", choices=sorted(PROFILES), default="v1")
+    itp.add_argument("--n-boot", type=int, default=200)
+    itp.add_argument("--jobs", type=int, default=-1)
+    itp.add_argument("--processed", type=Path, default=RAIZ / "data" / "processed")
+    itp.add_argument("--out", type=Path, default=RAIZ / "results" / "interpretation")
     return parser
 
 
@@ -296,6 +306,30 @@ def _report(args: argparse.Namespace) -> None:
         console.print(f"{name}: {path}")
 
 
+def _interpret(args: argparse.Namespace) -> None:
+    features = (
+        args.processed / f"features-{args.features}" / f"preproc-{args.preproc}" / "features.tsv"
+    )
+    out = args.out / f"{args.features}_{args.preproc}"
+    columns = (SpinnerColumn("line"), TextColumn("{task.description:<34}"), BarColumn(),
+               MofNCompleteColumn(), TimeElapsedColumn(), TimeRemainingColumn())  # fmt: skip
+    with Progress(*columns, console=console) as progress:
+        task = progress.add_task("preparando", total=None)
+
+        def on_event(contrast: str, done: int, total: int) -> None:
+            progress.update(
+                task, completed=done, total=total, description=f"{contrast} · bootstrap"
+            )
+
+        long = run_interpretation(features, out, args.n_boot, n_jobs=args.jobs, on_event=on_event)
+    for contrast in long["contrast"].unique():
+        plot_contrast_topomaps(long, contrast, out / f"patrones_{contrast}.pdf")
+    plot_magnitude(long, out / "magnitud.pdf")
+    stable = long.assign(estable=long["stability"] >= 0.95).groupby("contrast")["estable"].sum()
+    console.print(f"Features × canales con signo estable (≥95%): {stable.to_dict()}")
+    console.print(f"Tabla y figuras en {out}")
+
+
 def main(argv: list[str] | None = None) -> None:
     """Ejecuta el subcomando indicado."""
     args = _parser().parse_args(argv)
@@ -310,6 +344,8 @@ def main(argv: list[str] | None = None) -> None:
         _classify(args)
     elif args.command == "report":
         _report(args)
+    elif args.command == "interpret":
+        _interpret(args)
 
 
 if __name__ == "__main__":

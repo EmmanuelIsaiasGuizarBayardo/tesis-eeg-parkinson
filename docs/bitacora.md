@@ -104,14 +104,22 @@ desviaciones. Tabla y figuras: `uv run tesis-eeg-parkinson report`.
   el percentil 95 de su nula sin corregir (p = 0.027): exploratorio.
 - El azar empírico (P95) va de 0.65 a 0.71 en todos los análisis: con unos 30
   registros, superar el azar exige alrededor de 0.68, no 0.5.
-- La fuga se reproduce en los diez análisis: con validación por épocas, de 0.81 a
-  0.995; por sujeto, de 0.44 a 0.75.
-- Con las features de Aljalal, la fuga es mayor (0.978 a 0.995) que con V1 (0.875 a
-  0.961). Hipótesis: las features dependientes de la amplitud codifican la identidad
-  del sujeto; también son tres veces más.
+- La fuga se reproduce en los diez análisis. En la misma unidad (exactitud por época),
+  la validación por épocas suma de 21 a 46 puntos porcentuales (mediana 36). En el
+  análisis principal: Off vs HC 0.54 contra 0.94; On vs HC 0.59 contra 0.96; Off vs On
+  0.58 contra 0.88.
+- Promediar las épocas de un registro mejora la exactitud por sujeto (0.54–0.59 por
+  época, 0.61–0.69 por registro): una decisión necesita minutos, no una época de 10 s.
+- Con las features de Aljalal, la validación por épocas da más (0.978 a 0.995), pero
+  la validación por sujeto también; la inflación es comparable a la de V1 (mediana
+  0.380 contra 0.369), salvo en Off vs On (0.463 contra 0.295). Corrige una primera
+  lectura de esta bitácora que decía que inflaban más.
 - Con pd6 y pd16 ON incluidas, Off vs On sube a 0.733 (p Holm = 0.036 dentro de su
-  propia familia, no confirmatoria): sus sesiones ON tienen otra procedencia. Respalda
-  la exclusión a priori.
+  propia familia, no confirmatoria): un resultado atribuible a la procedencia de esas
+  sesiones, no a la medicación. Verificado registro por registro: los 4 registros
+  añadidos se clasificaron bien (pd6 on con probabilidad 0.07 de ser off) y los otros
+  26 conservaron sus 18 aciertos. El control de calidad previo a la clasificación
+  evitó reportarlo como efecto de la medicación.
 - Transferencia, mismos sujetos (32 canales, 14 canales, EPOC X emulado): Off vs HC
   0.600, 0.567 y 0.467; On vs HC 0.679, 0.579 y 0.436; Off vs On 0.692, 0.654 y
   0.654. Descriptivo: las diferencias caben en los IC, y la emulación es un límite
@@ -125,7 +133,11 @@ desviaciones. Tabla y figuras: `uv run tesis-eeg-parkinson report`.
 
 **Para la interpretación (siguiente etapa).**
 
-- Topografías de los patrones de Haufe del análisis principal (`patterns.tsv`).
+- Topografías de los patrones de Haufe del análisis principal:
+  `uv run tesis-eeg-parkinson interpret`.
+- Adición exploratoria, decidida el 24 de octubre de 2026, antes de mirar cualquier
+  patrón: estabilidad del signo por bootstrap de sujetos (200 remuestreos, umbral
+  95%). No estaba en el prerregistro y se reporta como exploratoria.
 - Piloto con un EPOC X real: la emulación es un límite superior.
 
 **Para el texto de la tesis.**
