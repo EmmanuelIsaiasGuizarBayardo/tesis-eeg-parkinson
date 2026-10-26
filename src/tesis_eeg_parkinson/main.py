@@ -40,6 +40,7 @@ from tesis_eeg_parkinson.classification.run import run_analysis
 from tesis_eeg_parkinson.features import PROFILES as FEATURE_PROFILES
 from tesis_eeg_parkinson.features import run_features
 from tesis_eeg_parkinson.figures import FIGURES, build_all
+from tesis_eeg_parkinson.figures.base import STYLE_FOLDERS
 from tesis_eeg_parkinson.interpretation import run_interpretation
 from tesis_eeg_parkinson.interpretation.aperiodic import run_aperiodic_check
 from tesis_eeg_parkinson.interpretation.figures import plot_contrast_topomaps, plot_magnitude
@@ -106,7 +107,7 @@ def _parser() -> argparse.ArgumentParser:
     fig.add_argument("--only", nargs="*", choices=FIGURES, default=None)
     fig.add_argument("--processed", type=Path, default=RAIZ / "data" / "processed")
     fig.add_argument("--results", type=Path, default=RAIZ / "results")
-    fig.add_argument("--out", type=Path, default=RAIZ / "results" / "figuras")
+    fig.add_argument("--out", type=Path, default=RAIZ / "results" / "figures")
     return parser
 
 
@@ -363,7 +364,8 @@ def _aperiodic_check(args: argparse.Namespace) -> None:
 def _figures(args: argparse.Namespace) -> None:
     only = tuple(args.only) if args.only else FIGURES
     with console.status(f"Construyendo {len(only)} figuras ({args.estilo})..."):
-        status = build_all(args.processed, args.results, args.out / args.estilo, args.estilo, only)
+        folder = args.out / STYLE_FOLDERS[args.estilo]
+        status = build_all(args.processed, args.results, folder, args.estilo, only)
     for name, result in status.items():
         console.print(f"{name}: {result}")
 

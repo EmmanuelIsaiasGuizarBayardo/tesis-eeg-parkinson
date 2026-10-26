@@ -19,6 +19,8 @@ import numpy as np
 # - publicacion: 89 o 183 mm con texto de 5 a 7 pt (guía de Nature);
 # - presentacion: publicación escalada 1.8 veces, con el texto de 14 pt del estilo.
 STYLES = ("tesis", "publicacion", "presentacion")
+# Carpetas de salida en inglés, como el resto de results/.
+STYLE_FOLDERS = {"tesis": "thesis", "publicacion": "publication", "presentacion": "presentation"}
 SCALE = {"publicacion": 1.0, "presentacion": 1.8}
 TESIS_WIDTH_MM = 160.0
 TESIS_RC = {
