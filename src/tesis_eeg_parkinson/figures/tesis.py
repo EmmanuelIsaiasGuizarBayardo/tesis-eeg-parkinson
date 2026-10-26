@@ -23,10 +23,12 @@ from tesis_eeg_parkinson.figures.base import (
     Figura,
     group_of,
     group_styles,
+    panel,
     save,
     setup,
     size,
     strip,
+    text_pt,
 )
 from tesis_eeg_parkinson.interpretation.figures import _info
 from tesis_eeg_parkinson.preprocessing.config import SCALP_CHANNELS, V1
@@ -50,7 +52,7 @@ def fig_calidad(qc: pd.DataFrame, estilo: str) -> Figura:
     """Calidad por registro: épocas, componentes, canales que marca PREP y etiquetas de ICA."""
     setup(estilo)
     qc = qc.assign(group=qc["session"].map(group_of))
-    fig, axes = plt.subplots(2, 2, figsize=size(183, 120, estilo), layout="constrained")
+    fig, axes = plt.subplots(2, 2, figsize=size(183, 120, estilo, 170), layout="constrained")
     (ax_a, ax_b), (ax_c, ax_d) = axes
     frac = qc["n_epochs_kept"] / qc["n_epochs_total"]
     by = {g: frac[qc["group"] == g].to_numpy() for g in GROUPS}
@@ -59,12 +61,12 @@ def fig_calidad(qc: pd.DataFrame, estilo: str) -> Figura:
     }
     strip(ax_a, by, hollow)
     ax_a.set_ylabel("Épocas conservadas (fracción)")
-    ax_a.set_ylim(0, 1.05)
-    fc.letra_panel(ax_a, "a")
+    ax_a.set_ylim(max(0.0, np.floor(frac.min() * 10) / 10 - 0.05), 1.03)
+    panel(ax_a, "a", estilo)
     strip(ax_b, {g: qc.loc[qc["group"] == g, "n_ics_excluded"].to_numpy() for g in GROUPS}, hollow)
     ax_b.set_ylabel("Componentes excluidos por registro")
     ax_b.yaxis.set_major_locator(MaxNLocator(integer=True))
-    fc.letra_panel(ax_b, "b")
+    panel(ax_b, "b", estilo)
     flags = qc["prep_flagged"].fillna("").str.split(",")
     rate = np.array([flags.map(lambda f, c=ch: c in f).mean() for ch in SCALP_CHANNELS])
     cmap, norm = fc.mapa_para(rate)
@@ -84,8 +86,8 @@ def fig_calidad(qc: pd.DataFrame, estilo: str) -> Figura:
         extend=fc.extension(rate, norm),
         label="Fracción de registros marcados",
     )
-    ax_c.set_title("Canales que marca PREP (diagnóstico)")
-    fc.letra_panel(ax_c, "c")
+    ax_c.set_title("Marcados por PREP\n(diagnóstico)")
+    panel(ax_c, "c", estilo)
     styles = group_styles()
     ys = np.arange(len(IC_LABELS))
     for i, g in enumerate(GROUPS):
@@ -103,9 +105,9 @@ def fig_calidad(qc: pd.DataFrame, estilo: str) -> Figura:
         )
     ax_d.set_yticks(ys, IC_NAMES)
     ax_d.invert_yaxis()
-    ax_d.set_xlabel("Componentes excluidos por registro (media)")
+    ax_d.set_xlabel("Componentes excluidos\n(media por registro)")
     ax_d.legend(loc="best")
-    fc.letra_panel(ax_d, "d")
+    panel(ax_d, "d", estilo)
     leyenda = (
         "Calidad del preprocesamiento V1 por registro (46 registros). a, fracción de épocas de "
         "10 s conservadas tras el rechazo pico a pico de 150 µV; b, componentes de ICA "
@@ -122,7 +124,7 @@ def fig_calidad(qc: pd.DataFrame, estilo: str) -> Figura:
 def fig_procedencia(spectra: dict[str, tuple[np.ndarray, np.ndarray]], estilo: str) -> Figura:
     """Espectro de cada sesión ON; pd6 y pd16 ON frente a las demás."""
     setup(estilo)
-    fig, ax = plt.subplots(figsize=size(89, 70, estilo), layout="constrained")
+    fig, ax = plt.subplots(figsize=size(89, 70, estilo, 95), layout="constrained")
     others = [db for name, (_, db) in spectra.items() if name not in ("pd6", "pd16")]
     freqs = next(iter(spectra.values()))[0]
     if others:
@@ -177,7 +179,7 @@ def band_responses(fs: float, bands: tuple[str, ...]) -> tuple[np.ndarray, dict[
 def fig_wavelet(amplitudes: dict[str, np.ndarray], estilo: str) -> Figura:
     """Bandas de la DWT a 128 y 512 Hz frente al filtro final, y su amplitud real."""
     setup(estilo)
-    fig = plt.figure(figsize=size(183, 130, estilo), layout="constrained")
+    fig = plt.figure(figsize=size(183, 130, estilo, 175), layout="constrained")
     gs = fig.add_gridspec(2, 2)
     ax_a, ax_b, ax_c = (
         fig.add_subplot(gs[0, 0]),
@@ -200,7 +202,7 @@ def fig_wavelet(amplitudes: dict[str, np.ndarray], estilo: str) -> Figura:
         ax.set_xlabel("Frecuencia (Hz)")
         ax.set_ylabel("Ganancia (dB)")
         ax.set_title(f"DWT db4 a {fs:.0f} Hz")
-        fc.letra_panel(ax, letter)
+        panel(ax, letter, estilo)
     ax_a.legend(loc="lower left", ncol=2)
     styles = fc.categorica(5)
     for i, b in enumerate(names):
@@ -226,9 +228,9 @@ def fig_wavelet(amplitudes: dict[str, np.ndarray], estilo: str) -> Figura:
         range(5),
         ["cA4\n0–16 Hz", "cD4\n16–32 Hz", "cD3\n32–64 Hz", "cD2\n64–128 Hz", "cD1\n128–256 Hz"],
     )
-    ax_c.set_xlim(-0.5, 4.6)
+    ax_c.set_xlim(-0.5, 5.0)
     ax_c.set_ylabel("Mediana de |amplitud| por época y canal (µV)")
-    fc.letra_panel(ax_c, "c")
+    panel(ax_c, "c", estilo)
     leyenda = (
         "Qué es señal y qué es residuo en la descomposición wavelet. a y b, ganancia de cada "
         "banda reconstruida de la DWT diádica (db4, 4 niveles), medida con ruido blanco, a 128 "
@@ -292,21 +294,33 @@ def fig_redundancia(aljalal: pd.DataFrame, v1: pd.DataFrame, estilo: str) -> Fig
     b = channel_median(v1, V1_NAMES).corr("spearman")
     values = np.concatenate([a.to_numpy().ravel(), b.to_numpy().ravel()])
     cmap, norm = fc.mapa_para(values, centro=0)
-    fig, (ax_a, ax_b) = plt.subplots(
-        1, 2, figsize=size(183, 95, estilo), layout="constrained", width_ratios=(8, 17)
+    # Celdas más grandes en a (lleva los valores escritos) que en b.
+    fig, (ax_a, ax_b, cax) = plt.subplots(
+        1,
+        3,
+        figsize=size(183, 95, estilo, 100),
+        layout="constrained",
+        width_ratios=(8, 11, 0.45),
     )
     for ax, m, letter, title in ((ax_a, a, "a", "Aljalal et al., cA4"), (ax_b, b, "b", "V1")):
         ax.imshow(m.to_numpy(), cmap=cmap, norm=norm)
         ax.set_xticks(range(len(m)), m.columns, rotation=90)
         ax.set_yticks(range(len(m)), m.index)
         ax.set_title(title)
-        fc.letra_panel(ax, letter)
+        panel(ax, letter, estilo)
     for (i, j), v in np.ndenumerate(a.to_numpy()):
-        ax_a.text(j, i, f"{v:.2f}".replace("0.", "."), ha="center", va="center", fontsize=4.5)
+        ax_a.text(
+            j,
+            i,
+            f"{v:.2f}".replace("0.", ".").replace("-.", "−."),
+            ha="center",
+            va="center",
+            fontsize=text_pt(0.65),
+            color="white" if abs(v) > 0.6 else "black",
+        )
     fig.colorbar(
         ScalarMappable(norm=norm, cmap=cmap),
-        ax=ax_b,
-        shrink=0.8,
+        cax=cax,
         extend=fc.extension(values, norm),
         label="ρ de Spearman",
     )
@@ -325,7 +339,9 @@ def fig_redundancia(aljalal: pd.DataFrame, v1: pd.DataFrame, estilo: str) -> Fig
 def fig_nula(null: pd.DataFrame, summary: pd.DataFrame, estilo: str) -> Figura:
     """Distribución nula por permutación, azar empírico y valor observado por contraste."""
     setup(estilo)
-    fig, axes = plt.subplots(1, 3, figsize=size(183, 60, estilo), layout="constrained", sharey=True)
+    fig, axes = plt.subplots(
+        1, 3, figsize=size(183, 60, estilo, 80), layout="constrained", sharey=True
+    )
     color = fc.categorica(1)[0]
     bins = np.arange(0.2, 0.92, 0.025)
     for ax, letter, contrast in zip(axes, "abc", CONTRAST_TITLES, strict=True):
@@ -351,7 +367,7 @@ def fig_nula(null: pd.DataFrame, summary: pd.DataFrame, estilo: str) -> Figura:
         )
         ax.set_title(CONTRAST_TITLES[contrast])
         ax.set_xlabel("Exactitud balanceada (registro)")
-        fc.letra_panel(ax, letter)
+        panel(ax, letter, estilo)
     axes[0].set_ylabel("Permutaciones")
     leyenda = (
         "Azar empírico. Distribución nula de la exactitud balanceada por registro en 1,000 "
@@ -374,7 +390,9 @@ TRANSFER = (
 def fig_transferencia(resumen: pd.DataFrame, estilo: str) -> Figura:
     """De 32 canales a 14 y al EPOC X emulado, con los mismos sujetos."""
     setup(estilo)
-    fig, axes = plt.subplots(1, 3, figsize=size(183, 65, estilo), layout="constrained", sharey=True)
+    fig, axes = plt.subplots(
+        1, 3, figsize=size(183, 65, estilo, 85), layout="constrained", sharey=True
+    )
     color = fc.categorica(1)[0]
     for ax, letter, contrast in zip(axes, "abc", CONTRAST_TITLES, strict=True):
         rows = [
@@ -398,7 +416,7 @@ def fig_transferencia(resumen: pd.DataFrame, estilo: str) -> Figura:
         ax.set_xticks(range(len(TRANSFER)), [t for _, t in TRANSFER])
         ax.set_xlim(-0.5, len(TRANSFER) - 0.5)
         ax.set_title(CONTRAST_TITLES[contrast])
-        fc.letra_panel(ax, letter)
+        panel(ax, letter, estilo)
     axes[0].set_ylabel("Exactitud balanceada (registro)")
     leyenda = (
         "Transferencia al Emotiv EPOC X con las mismas personas. Exactitud balanceada por "
@@ -413,9 +431,9 @@ def fig_transferencia(resumen: pd.DataFrame, estilo: str) -> Figura:
 
 # -------------------------------------------------------------------- 5. Interpretación
 KEY_PATTERNS = (
-    ("relpow", "cD4", "Potencia relativa 4–8 Hz"),
-    ("alpha_cog", "broadband", "Centro de alfa"),
-    ("aperiodic_exponent", "broadband", "Exponente aperiódico"),
+    ("relpow", "cD4", "Potencia relativa\n4–8 Hz"),
+    ("alpha_cog", "broadband", "Centro\nde alfa"),
+    ("aperiodic_exponent", "broadband", "Exponente\naperiódico"),
 )
 
 
@@ -423,7 +441,11 @@ def fig_patrones_clave(patterns: pd.DataFrame, estilo: str) -> Figura:
     """Tres features clave en los tres contrastes; escala compartida por fila."""
     setup(estilo)
     fig, axes = plt.subplots(
-        3, 4, figsize=size(183, 140, estilo), layout="constrained", width_ratios=(1, 1, 1, 0.08)
+        3,
+        4,
+        figsize=size(183, 140, estilo, 200),
+        layout="constrained",
+        width_ratios=(1, 1, 1, 0.08),
     )
     info = _info(list(SCALP_CHANNELS))
     positive = {"off_vs_hc": "PD off", "on_vs_hc": "PD on", "off_vs_on": "PD off"}
@@ -466,7 +488,7 @@ def fig_patrones_clave(patterns: pd.DataFrame, estilo: str) -> Figura:
             ha="right",
             va="center",
         )
-        fc.letra_panel(axes[row, 0], "abc"[row])
+        panel(axes[row, 0], "abc"[row], estilo)
         fig.colorbar(
             ScalarMappable(norm=norm, cmap=cmap),
             cax=axes[row, 3],

@@ -10,7 +10,7 @@ Uso::
     uv run tesis-eeg-parkinson report
     uv run tesis-eeg-parkinson interpret
     uv run tesis-eeg-parkinson aperiodic-check
-    uv run tesis-eeg-parkinson figures --estilo publicacion
+    uv run tesis-eeg-parkinson figures --estilo tesis
 """
 
 from __future__ import annotations
@@ -102,7 +102,7 @@ def _parser() -> argparse.ArgumentParser:
     ape.add_argument("--processed", type=Path, default=RAIZ / "data" / "processed")
     ape.add_argument("--out", type=Path, default=RAIZ / "results" / "interpretation" / "aperiodic")
     fig = sub.add_parser("figures", help="Figuras de la tesis (PDF y PNG) con sus leyendas")
-    fig.add_argument("--estilo", choices=["publicacion", "presentacion"], default="publicacion")
+    fig.add_argument("--estilo", choices=["tesis", "publicacion", "presentacion"], default="tesis")
     fig.add_argument("--only", nargs="*", choices=FIGURES, default=None)
     fig.add_argument("--processed", type=Path, default=RAIZ / "data" / "processed")
     fig.add_argument("--results", type=Path, default=RAIZ / "results")

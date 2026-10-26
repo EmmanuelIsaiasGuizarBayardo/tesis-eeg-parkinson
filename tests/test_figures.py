@@ -72,7 +72,7 @@ def _resumen() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-@pytest.mark.parametrize("estilo", ["publicacion", "presentacion"])
+@pytest.mark.parametrize("estilo", ["tesis", "publicacion", "presentacion"])
 def test_all_figures_build_and_save(tmp_path: Path, estilo: str) -> None:
     freqs = np.linspace(0.25, 45, 180)
     spectra = {

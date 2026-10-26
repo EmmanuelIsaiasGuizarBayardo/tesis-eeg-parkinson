@@ -13,9 +13,26 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-# En presentación (diapositivas y carteles) todo crece 1.8 veces, junto con el texto
-# de 14 pt del estilo; así las proporciones de la versión de publicación se conservan.
+# Tres estilos con el mismo código:
+# - tesis: todas las figuras a 160 mm (ancho de texto de una hoja carta), con texto de
+#   9 a 10.5 pt y letras "A)" de 12 pt, como las figuras del artículo del CNIB;
+# - publicacion: 89 o 183 mm con texto de 5 a 7 pt (guía de Nature);
+# - presentacion: publicación escalada 1.8 veces, con el texto de 14 pt del estilo.
+STYLES = ("tesis", "publicacion", "presentacion")
 SCALE = {"publicacion": 1.0, "presentacion": 1.8}
+TESIS_WIDTH_MM = 160.0
+TESIS_RC = {
+    "font.size": 10,
+    "axes.titlesize": 10.5,
+    "axes.titleweight": "bold",
+    "axes.labelsize": 10,
+    "xtick.labelsize": 9,
+    "ytick.labelsize": 9,
+    "legend.fontsize": 9,
+    "lines.linewidth": 1.3,
+    "lines.markersize": 5,
+    "axes.linewidth": 0.8,
+}
 GROUPS = ("hc", "pd-off", "pd-on")
 GROUP_LABELS = {"hc": "HC", "pd-off": "PD off", "pd-on": "PD on"}
 LSB_UV = 0.03125  # paso de cuantización de BioSemi ActiveTwo: 31.25 nV
@@ -33,13 +50,38 @@ class Figura:
 def setup(estilo: str) -> None:
     """Estilo de la biblioteca y fecha fija en el PDF (byte a byte reproducible)."""
     os.environ.setdefault("SOURCE_DATE_EPOCH", "0")
-    fc.usar_estilo(estilo)
+    if estilo == "tesis":
+        fc.usar_estilo("publicacion")
+        plt.rcParams.update(TESIS_RC)
+    else:
+        fc.usar_estilo(estilo)
 
 
-def size(width_mm: float, height_mm: float, estilo: str) -> tuple[float, float]:
-    """Tamaño en pulgadas; en publicación, el ancho es 89 o 183 mm (guía de Nature)."""
+def size(
+    width_mm: float, height_mm: float, estilo: str, tesis_mm: float | None = None
+) -> tuple[float, float]:
+    """Tamaño en pulgadas.
+
+    En tesis todas miden 160 mm de ancho y ``tesis_mm`` de alto (por omisión, 1.3 veces
+    el alto de publicación); en publicación, 89 o 183 mm, y en presentación, 1.8 veces.
+    """
+    if estilo == "tesis":
+        return TESIS_WIDTH_MM / 25.4, (tesis_mm or 1.3 * height_mm) / 25.4
     k = SCALE[estilo]
     return width_mm * k / 25.4, height_mm * k / 25.4
+
+
+def panel(ax, letra: str, estilo: str) -> None:
+    """Letra de panel: "A)" de 12 pt en tesis, como el artículo; minúscula de Nature si no."""
+    if estilo == "tesis":
+        fc.letra_panel(ax, letra, estilo="parentesis").set_fontsize(12)
+    else:
+        fc.letra_panel(ax, letra)
+
+
+def text_pt(factor: float) -> float:
+    """Tamaño de texto relativo al texto base del estilo activo."""
+    return plt.rcParams["font.size"] * factor
 
 
 def group_of(session: str) -> str:
