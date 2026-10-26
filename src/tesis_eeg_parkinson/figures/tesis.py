@@ -381,8 +381,8 @@ def fig_nula(null: pd.DataFrame, summary: pd.DataFrame, estilo: str) -> Figura:
 
 
 TRANSFER = (
-    ("v1_v1_lr_inter-epocx", "32 canales"),
-    ("v1_v1_lr_inter-epocx_ch-emotiv", "14 canales"),
+    ("v1_v1_lr_inter-epocx", "32\ncanales"),
+    ("v1_v1_lr_inter-epocx_ch-emotiv", "14\ncanales"),
     ("v1_epocx_lr_inter-v1", "EPOC X\nemulado"),
 )
 
@@ -549,6 +549,8 @@ def _read(path: Path) -> pd.DataFrame:
 
 def builders(processed: Path, results: Path) -> dict[str, Callable[[str], Figura]]:
     """Cada figura con su cargador; se construye solo si sus datos existen."""
+    from tesis_eeg_parkinson.figures import complementarias as C  # noqa: N812
+
     pre = processed / "preproc-v1"
     cls = results / "classification"
     return {
@@ -564,13 +566,22 @@ def builders(processed: Path, results: Path) -> dict[str, Callable[[str], Figura
             _read(cls / "v1_v1_lr" / "null.tsv"), _read(cls / "v1_v1_lr" / "summary.tsv"), e
         ),
         "transferencia": lambda e: fig_transferencia(_read(cls / "resumen.tsv"), e),
+        "pipeline": lambda e: C.fig_pipeline(e),
+        "filtro": lambda e: C.fig_filtro(C.filter_responses(), e),
+        "descomposicion": lambda e: C.fig_descomposicion(*C.load_example_epoch(pre), e),
+        "orden": lambda e: C.fig_orden(C.order_effects(C.demo_signal()), e),
+        "fuga_simulada": lambda e: C.fig_fuga_simulada(C.leakage_curve(), e),
+        "espectros": lambda e: C.fig_espectros_grupo(*C.load_group_spectra(pre), e),
         "patrones": lambda e: fig_patrones_clave(
             _read(results / "interpretation" / "v1_v1" / "patterns.tsv"), e
         ),
     }
 
 
-FIGURES = ("calidad", "procedencia", "wavelet", "redundancia", "nula", "transferencia", "patrones")
+FIGURES = (
+    "calidad", "procedencia", "wavelet", "redundancia", "nula", "transferencia", "patrones",
+    "pipeline", "filtro", "descomposicion", "orden", "fuga_simulada", "espectros",
+)  # fmt: skip
 
 
 def build_all(

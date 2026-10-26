@@ -123,3 +123,35 @@ def test_build_all_reports_missing_data(tmp_path: Path) -> None:
         tmp_path / "nada", tmp_path / "nada", tmp_path / "out", "publicacion", only=("nula",)
     )
     assert status["nula"].startswith("faltan datos")
+
+
+def test_complementary_figures(tmp_path: Path) -> None:
+    from tesis_eeg_parkinson.figures import complementarias as C
+
+    rng = np.random.default_rng(3)
+    freqs = np.linspace(1, 32, 60)
+    spectra = pd.DataFrame(
+        [
+            {"group": g, "db": -10 * np.log10(freqs) + rng.normal(0, 1, freqs.size)}
+            for g in ("hc", "pd-off", "pd-on")
+            for _ in range(4)
+        ]
+    )
+    effects = C.order_effects(C.demo_signal())
+    # Barajar no cambia las métricas distribucionales; invertir solo cambia T3.
+    flat = effects.set_index("metric")
+    assert abs(flat.loc["Energía (Aljalal)", "barajar"]) < 1e-6
+    assert flat.loc["T3 τ = 1", "invertir"] == pytest.approx(-200, abs=1e-6)
+    curve = C.leakage_curve(strengths=(0.0, 4.0), seeds=(0,), repeats=1)
+    high = curve[curve["fingerprint"] == 4.0].iloc[0]
+    assert high["epoch_cv"] > high["subject_cv"] + 0.25
+    figuras = [
+        C.fig_pipeline("tesis"),
+        C.fig_filtro(C.filter_responses(n=2**16), "tesis"),
+        C.fig_descomposicion(C.demo_signal(), 128.0, "sintética", "tesis"),
+        C.fig_orden(effects, "tesis"),
+        C.fig_fuga_simulada(curve, "tesis"),
+        C.fig_espectros_grupo(spectra, freqs, "tesis", n_boot=50),
+    ]
+    for figura in figuras:
+        assert all(p.exists() for p in save(figura, tmp_path))
