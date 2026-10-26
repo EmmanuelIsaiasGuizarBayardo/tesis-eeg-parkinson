@@ -507,12 +507,13 @@ wheels = [
 
 [[package]]
 name = "figuras-cientificas"
-version = "0.1.4"
-source = { git = "https://github.com/EmmanuelIsaiasGuizarBayardo/figuras-cientificas#80e4d054f7727f41aaa378cde48ba743d3506e59" }
+version = "0.2.0"
+source = { git = "https://github.com/EmmanuelIsaiasGuizarBayardo/figuras-cientificas#be46b763ff59a36c0beb584436a9d228890eb063" }
 dependencies = [
     { name = "cmcrameri" },
     { name = "colorspacious" },
     { name = "matplotlib" },
+    { name = "pillow" },
 ]
 
 [[package]]

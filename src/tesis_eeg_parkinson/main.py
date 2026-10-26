@@ -10,6 +10,7 @@ Uso::
     uv run tesis-eeg-parkinson report
     uv run tesis-eeg-parkinson interpret
     uv run tesis-eeg-parkinson aperiodic-check
+    uv run tesis-eeg-parkinson figures --estilo publicacion
 """
 
 from __future__ import annotations
@@ -38,6 +39,7 @@ from tesis_eeg_parkinson.classification.report import write_report
 from tesis_eeg_parkinson.classification.run import run_analysis
 from tesis_eeg_parkinson.features import PROFILES as FEATURE_PROFILES
 from tesis_eeg_parkinson.features import run_features
+from tesis_eeg_parkinson.figures import FIGURES, build_all
 from tesis_eeg_parkinson.interpretation import run_interpretation
 from tesis_eeg_parkinson.interpretation.aperiodic import run_aperiodic_check
 from tesis_eeg_parkinson.interpretation.figures import plot_contrast_topomaps, plot_magnitude
@@ -99,6 +101,12 @@ def _parser() -> argparse.ArgumentParser:
     ape = sub.add_parser("aperiodic-check", help="Exponente OFF vs ON: ¿cortical o muscular?")
     ape.add_argument("--processed", type=Path, default=RAIZ / "data" / "processed")
     ape.add_argument("--out", type=Path, default=RAIZ / "results" / "interpretation" / "aperiodic")
+    fig = sub.add_parser("figures", help="Figuras de la tesis (PDF y PNG) con sus leyendas")
+    fig.add_argument("--estilo", choices=["publicacion", "presentacion"], default="publicacion")
+    fig.add_argument("--only", nargs="*", choices=FIGURES, default=None)
+    fig.add_argument("--processed", type=Path, default=RAIZ / "data" / "processed")
+    fig.add_argument("--results", type=Path, default=RAIZ / "results")
+    fig.add_argument("--out", type=Path, default=RAIZ / "results" / "figuras")
     return parser
 
 
@@ -352,6 +360,14 @@ def _aperiodic_check(args: argparse.Namespace) -> None:
     console.print(f"Tablas y figura en {args.out}")
 
 
+def _figures(args: argparse.Namespace) -> None:
+    only = tuple(args.only) if args.only else FIGURES
+    with console.status(f"Construyendo {len(only)} figuras ({args.estilo})..."):
+        status = build_all(args.processed, args.results, args.out / args.estilo, args.estilo, only)
+    for name, result in status.items():
+        console.print(f"{name}: {result}")
+
+
 def main(argv: list[str] | None = None) -> None:
     """Ejecuta el subcomando indicado."""
     args = _parser().parse_args(argv)
@@ -370,6 +386,8 @@ def main(argv: list[str] | None = None) -> None:
         _interpret(args)
     elif args.command == "aperiodic-check":
         _aperiodic_check(args)
+    elif args.command == "figures":
+        _figures(args)
 
 
 if __name__ == "__main__":

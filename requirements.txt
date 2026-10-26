@@ -52,7 +52,7 @@ distlib==0.4.3
 eeglabio==0.1.4
 executing==2.2.1
     # via stack-data
-figuras-cientificas @ git+https://github.com/EmmanuelIsaiasGuizarBayardo/figuras-cientificas@80e4d054f7727f41aaa378cde48ba743d3506e59
+figuras-cientificas @ git+https://github.com/EmmanuelIsaiasGuizarBayardo/figuras-cientificas@be46b763ff59a36c0beb584436a9d228890eb063
     # via tesis-eeg-parkinson
 filelock==4.0.6
     # via
@@ -171,7 +171,9 @@ parso==0.8.7
 pexpect==4.9.0 ; sys_platform != 'emscripten' and sys_platform != 'win32'
     # via ipython
 pillow==12.3.0
-    # via matplotlib
+    # via
+    #   figuras-cientificas
+    #   matplotlib
 platformdirs==4.12.1
     # via
     #   jupyter-core
